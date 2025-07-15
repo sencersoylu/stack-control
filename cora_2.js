@@ -139,7 +139,7 @@ async function init() {
 		socket = io.connect('http://localhost:4000', { reconnect: true });
 		socket.on('connect', function () {
 			console.log('Connected to server');
-			//doorOpen();
+			doorOpen();
 			compValve(0);
 			decompValve(0);
 			sessionStartBit(0);
@@ -495,9 +495,18 @@ function read() {
 	);
 
 	if (sessionStatus.status > 0) sessionStatus.zaman++;
+	if (sessionStatus.status == 1 && sessionStatus.doorStatus == 0) {
+		console.log('door closing');
+		alarmSet('sessionStarting', 'Session Starting', 0);
+		doorClose();
+	}
 
 	// Sistem aktifse kontrol et
-	if (sessionStatus.status > 0 && sessionStatus.zaman > 5) {
+	if (
+		sessionStatus.status > 0 &&
+		sessionStatus.doorStatus == 1 &&
+		sessionStatus.zaman > 5
+	) {
 		// Hedef basıncı belirle
 		if (
 			sessionStatus.profile.length > sessionStatus.zaman &&
