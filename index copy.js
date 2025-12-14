@@ -10,7 +10,9 @@ const { linearConversion } = require('./src/helpers');
 const db = require('./src/models');
 const { ProfileUtils, ProfileManager } = require('./profile_manager');
 const dayjs = require('dayjs');
-const SensorCalibration = require('./o2_calibration');
+const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+const Chart = require('chart.js/auto');
+const annotationPlugin = require('chartjs-plugin-annotation');
 
 let server = http.Server(app);
 const bodyParser = require('body-parser');
@@ -30,20 +32,6 @@ let sensorData = {};
 
 let o2Timer = null;
 
-// O2 Kalibrasyon verilerini saklamak için obje
-let o2CalibrationData = {
-	point0: { raw: 0, percentage: 0 }, // %0 O2 için analog değer
-	point21: { raw: 828, percentage: 21 }, // %21 O2 için analog değer (varsayılan)
-	point100: { raw: 16383, percentage: 100 }, // %100 O2 için analog değer
-	isCalibrated: false,
-	lastCalibrationDate: null,
-	o2AlarmValuePercentage: 23.5,
-	o2AlarmOn: false,
-};
-
-// O2 sensör kalibrasyon instance'ı
-let o2Sensor = null;
-
 let socket = null;
 app.use(cors());
 app.use(bodyParser.json());
@@ -53,6 +41,9 @@ app.use(
 	})
 );
 app.use(allRoutes);
+
+let chartInterval = null;
+let chartIsBusy = false;
 
 let sessionStatus = {
 	status: 0, // 0: session durumu yok, 1: session başlatıldı, 2: session duraklatıldı, 3: session durduruldu
@@ -119,109 +110,10 @@ let sessionStatus = {
 	patientAlarm: false,
 	fireAlarm: false,
 	alarm: false,
-	// Basınç oranı hesaplama için
-	pressRateFswPerMin: 0,
-	pressRateBarPerMin: 0,
-	// Deviation alarm için
-	deviationAlarm: false,
-	// Profile bazlı oksijen kontrolü için
-	oksijenBaslangicZamani: 0,
-	oksijenBitisZamani: 0,
-	highHumidity: false,
-	humidityAlarmLevel: 70,
 };
 
 // Make sessionStatus globally accessible
 global.sessionStatus = sessionStatus;
-
-// ------------------------------------------------------------
-// Simple EMA low-pass filters for sensor smoothing
-// ------------------------------------------------------------
-class LowPassFilter {
-	constructor(alpha, sensorName) {
-		this.alpha = Number(alpha);
-		this.sensorName = sensorName;
-		this.y = undefined;
-	}
-	update(x) {
-		const value = Number(x);
-		if (!Number.isFinite(value)) {
-			// Return current value rounded to sensorDecimal precision
-			if (this.y === undefined) return 0;
-			let outputDecimalPlaces = 2; // Default output precision
-			if (
-				sensorCalibrationData &&
-				sensorCalibrationData[this.sensorName] &&
-				typeof sensorCalibrationData[this.sensorName].sensorDecimal === 'number'
-			) {
-				outputDecimalPlaces =
-					sensorCalibrationData[this.sensorName].sensorDecimal;
-			}
-			return Number(this.y.toFixed(outputDecimalPlaces));
-		}
-
-		// Get output decimal places from sensorCalibrationData
-		let outputDecimalPlaces = 2; // Default output precision
-		if (
-			sensorCalibrationData &&
-			sensorCalibrationData[this.sensorName] &&
-			typeof sensorCalibrationData[this.sensorName].sensorDecimal === 'number'
-		) {
-			outputDecimalPlaces =
-				sensorCalibrationData[this.sensorName].sensorDecimal;
-		}
-
-		if (this.y === undefined) {
-			// First value: round to sensorDecimal precision
-			this.y = Number(value.toFixed(outputDecimalPlaces));
-		} else {
-			// Preserve decimal precision using sensorDecimal from calibration data
-			const newValue = this.alpha * value + (1 - this.alpha) * this.y;
-			// Use high precision for internal calculations (sensorDecimal + 2)
-			let internalDecimalPlaces = 4; // Default precision
-			if (
-				sensorCalibrationData &&
-				sensorCalibrationData[this.sensorName] &&
-				typeof sensorCalibrationData[this.sensorName].sensorDecimal === 'number'
-			) {
-				// Use sensorDecimal + 2 for internal precision (e.g., if sensorDecimal is 2, use 4)
-				internalDecimalPlaces =
-					sensorCalibrationData[this.sensorName].sensorDecimal + 2;
-			}
-			this.y = Number(newValue.toFixed(internalDecimalPlaces));
-		}
-
-		// Return value rounded to sensorDecimal precision
-		return Number(this.y.toFixed(outputDecimalPlaces));
-	}
-}
-
-const filterConfig = {
-	pressure: Number(process.env.FILTER_ALPHA_PRESSURE || 0.35),
-	o2: Number(process.env.FILTER_ALPHA_O2 || 0.2),
-	temperature: Number(process.env.FILTER_ALPHA_TEMPERATURE || 0.25),
-	humidity: Number(process.env.FILTER_ALPHA_HUMIDITY || 0.25),
-};
-
-const filters = {
-	pressure: new LowPassFilter(filterConfig.pressure, 'pressure'),
-	o2: new LowPassFilter(filterConfig.o2, 'o2'),
-	temperature: new LowPassFilter(filterConfig.temperature, 'temperature'),
-	humidity: new LowPassFilter(filterConfig.humidity, 'humidity'),
-};
-
-function computePressurizationRate(seconds = 60) {
-	if (!Array.isArray(sessionStatus.olcum) || sessionStatus.olcum.length < 2)
-		return 0;
-	const totalSamples = sessionStatus.olcum.length;
-	const windowSize = Math.min(seconds, totalSamples - 1);
-	const startIndex = totalSamples - 1 - windowSize;
-	const startValue = sessionStatus.olcum[startIndex];
-	const endValue = sessionStatus.olcum[totalSamples - 1];
-	const delta = endValue - startValue;
-	if (windowSize <= 0) return 0;
-	return (delta / windowSize) * 60; // fsw per minute
-}
 
 let alarmStatus = {
 	status: 0,
@@ -250,7 +142,6 @@ async function init() {
 	server.listen(4001, () => console.log(`Listening on port 4001`));
 
 	await loadSensorCalibrationData();
-	initializeO2Sensor();
 
 	setInterval(() => {
 		liveBit();
@@ -302,45 +193,35 @@ async function init() {
 					sessionStatus.alarm = false;
 				}
 
-				sensorData['pressure'] = filters.pressure.update(
-					linearConversion(
-						sensorCalibrationData['pressure'].sensorLowerLimit,
-						sensorCalibrationData['pressure'].sensorUpperLimit,
-						sensorCalibrationData['pressure'].sensorAnalogLower,
-						sensorCalibrationData['pressure'].sensorAnalogUpper,
-						dataObject.data[1],
-						sensorCalibrationData['pressure'].sensorDecimal
-					)
+				sensorData['pressure'] = linearConversion(
+					sensorCalibrationData['pressure'].sensorLowerLimit,
+					sensorCalibrationData['pressure'].sensorUpperLimit,
+					sensorCalibrationData['pressure'].sensorAnalogLower,
+					sensorCalibrationData['pressure'].sensorAnalogUpper,
+					dataObject.data[1],
+					sensorCalibrationData['pressure'].sensorDecimal
 				);
 				sessionStatus.pressure = sensorData['pressure'];
 				sessionStatus.main_fsw = sensorData['pressure'] * 33.4;
 
-				// O2 sensörü için gerçek analog değeri oku (dataObject.data[2] varsayıyoruz)
-				const o2RawValue = dataObject.data[2] || 8000; // Eğer veri yoksa varsayılan değer
-				sensorData.o2RawValue = o2RawValue; // Ham değeri sakla
-				let o2Value = o2Sensor ? o2Sensor.calibrate(o2RawValue) : 0;
-				sensorData['o2'] = filters.o2.update(o2Value);
+				sensorData['o2'] = 21.1;
 
-				sensorData['temperature'] = filters.temperature.update(
-					linearConversion(
-						sensorCalibrationData['temperature'].sensorLowerLimit,
-						sensorCalibrationData['temperature'].sensorUpperLimit,
-						sensorCalibrationData['temperature'].sensorAnalogLower,
-						sensorCalibrationData['temperature'].sensorAnalogUpper,
-						dataObject.data[4],
-						sensorCalibrationData['temperature'].sensorDecimal
-					)
+				sensorData['temperature'] = linearConversion(
+					sensorCalibrationData['temperature'].sensorLowerLimit,
+					sensorCalibrationData['temperature'].sensorUpperLimit,
+					sensorCalibrationData['temperature'].sensorAnalogLower,
+					sensorCalibrationData['temperature'].sensorAnalogUpper,
+					dataObject.data[4],
+					sensorCalibrationData['temperature'].sensorDecimal
 				);
 
-				sensorData['humidity'] = filters.humidity.update(
-					linearConversion(
-						sensorCalibrationData['humidity'].sensorLowerLimit,
-						sensorCalibrationData['humidity'].sensorUpperLimit,
-						sensorCalibrationData['humidity'].sensorAnalogLower,
-						sensorCalibrationData['humidity'].sensorAnalogUpper,
-						dataObject.data[5],
-						sensorCalibrationData['humidity'].sensorDecimal
-					)
+				sensorData['humidity'] = linearConversion(
+					sensorCalibrationData['humidity'].sensorLowerLimit,
+					sensorCalibrationData['humidity'].sensorUpperLimit,
+					sensorCalibrationData['humidity'].sensorAnalogLower,
+					sensorCalibrationData['humidity'].sensorAnalogUpper,
+					dataObject.data[5],
+					sensorCalibrationData['humidity'].sensorDecimal
 				);
 
 				if (dataObject.data[1] < 2000) {
@@ -629,28 +510,6 @@ async function loadSensorCalibrationData() {
 	}
 }
 
-function initializeO2Sensor() {
-	try {
-		o2Sensor = new SensorCalibration(
-			{
-				raw: o2CalibrationData.point0.raw,
-				actual: o2CalibrationData.point0.percentage,
-			},
-			{
-				raw: o2CalibrationData.point21.raw,
-				actual: o2CalibrationData.point21.percentage,
-			},
-			{
-				raw: o2CalibrationData.point100.raw,
-				actual: o2CalibrationData.point100.percentage,
-			}
-		);
-		console.log('O2 sensor calibration initialized successfully');
-	} catch (error) {
-		console.error('Error initializing O2 sensor calibration:', error);
-	}
-}
-
 setInterval(() => {
 	// //read();
 	// if (sessionStatus.status == 1) {
@@ -674,6 +533,13 @@ setInterval(() => {
 	}
 }, 1000);
 
+setInterval(() => {
+	if (!chartIsBusy) {
+		chartIsBusy = true;
+		createChart();
+	}
+}, 10000);
+
 // Her 3 saniyede bir livebit gönder
 
 function read() {
@@ -689,35 +555,12 @@ function read() {
 	});
 
 	console.log(
-		'status',
 		sessionStatus.status,
-		'zaman',
 		sessionStatus.zaman,
-		'grafikdurum',
 		sessionStatus.grafikdurum
 	);
 
-	console.log(
-		'Pressure : ',
-		sensorData['pressure'],
-		'O2 : ',
-		sensorData['o2'],
-		'Temperature : ',
-		sensorData['temperature'],
-		'Humidity : ',
-		sensorData['humidity']
-	);
-
-	// Ensure profile is always an array before any indexed access
-	if (!Array.isArray(sessionStatus.profile)) {
-		sessionStatus.profile = [];
-	}
-
 	if (sessionStatus.status > 0) sessionStatus.zaman++;
-	if (sessionStatus.status == 1 && sessionStatus.zaman == 1) {
-		alarmSet('sessionStarting', 'Session Starting', 0);
-		decompValve(0);
-	}
 
 	// Sistem aktifse kontrol et
 	if (sessionStatus.status > 0 && sessionStatus.zaman > 5) {
@@ -773,49 +616,71 @@ function read() {
 			sessionStatus.grafikdurum = 0; // Default to descent when at end
 		}
 
-		// Profile bazlı oksijen kontrolü
-		if (
-			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'air' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'o' &&
-			sessionStatus.oksijen == 0
-		) {
-			sessionStatus.oksijen = 1;
-			alarmSet('oxygenBreak', 'Oxygen Starting. Put the mask on.', 0);
-		} else if (
-			sessionStatus.lastdurum === 2 &&
-			sessionStatus.cikis == 0 &&
-			sessionStatus.grafikdurum == 0
-		) {
-			sessionStatus.oksijen = 0;
-			sessionStatus.oksijenBaslangicZamani = 0;
-			sessionStatus.oksijenBitisZamani = 0;
+		// Oksijen molası kontrolü - Düz grafik durumunda
+		if (sessionStatus.grafikdurum === 2) {
+			// Düz grafik durumunun başlangıcını kaydet
+			if (sessionStatus.lastdurum !== 2) {
+				sessionStatus.duzGrafikBaslangicZamani = sessionStatus.zaman;
+				sessionStatus.sonOksijenMolasi = sessionStatus.zaman;
+				console.log(
+					'Demo: Düz grafik durumu başladı, oksijen molası timer başlatıldı:',
+					sessionStatus.zaman
+				);
+				alarmSet('oxygenBreak', 'Please wear your oxygen mask. ', 900);
+			}
 
-			alarmSet(
-				'treatmenFinished',
-				'Treatment Finished. Take the mask off. Decompression Starting.',
-				0
-			);
+			// Her 15 dakikada (900 saniye) bir oksijen molası uyarısı
+			const dakika15Saniye = 15 * 60; // 900 saniye
+			const dakika5Saniye = 5 * 60; // 300 saniye
+			const gecenSure = sessionStatus.zaman - sessionStatus.sonOksijenMolasi;
 
-			console.log(
-				'Değişti : oksijen',
-				sessionStatus.oksijen,
-				'oksijenBaslangicZamani',
-				sessionStatus.oksijenBaslangicZamani,
-				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
-			);
-		} else if (
-			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'air' &&
-			sessionStatus.oksijen == 1
-		) {
-			sessionStatus.oksijen = 0;
+			// 15 dakika geçtiyse ve henüz uyarı aktif değilse
+			if (
+				gecenSure >= dakika15Saniye &&
+				!sessionStatus.oksijenMolasiAktif &&
+				sessionStatus.cikis == 0
+			) {
+				alarmSet(
+					'oxygenBreak',
+					'Please remove your mask for an oxygen break.',
+					dakika5Saniye
+				);
+				sessionStatus.oksijenMolasiAktif = true;
+				sessionStatus.sonOksijenMolasi = sessionStatus.zaman;
+				console.log(
+					'Demo: Oksijen molası uyarısı verildi:',
+					sessionStatus.zaman
+				);
+			}
 
-			alarmSet('oxygenBreak', 'Oxygen Stopped. Take the mask off.', 0);
+			// 5 dakika sonra uyarıyı kapatx
+			if (
+				sessionStatus.oksijenMolasiAktif &&
+				sessionStatus.zaman - sessionStatus.sonOksijenMolasi >= dakika5Saniye &&
+				sessionStatus.cikis == 0
+			) {
+				sessionStatus.oksijenMolasiAktif = false;
+				console.log(
+					'Demo: Oksijen molası uyarısı sona erdi:',
+					sessionStatus.zaman
+				);
+				alarmSet('oxygenBreak', 'Please wear your oxygen mask.', 0);
+			}
+		} else {
+			// Düz durumdan çıkıldığında timer'ları sıfırla
+			if (sessionStatus.lastdurum === 2 && sessionStatus.cikis == 0) {
+				sessionStatus.duzGrafikBaslangicZamani = 0;
+				sessionStatus.oksijenMolasiAktif = false;
+				console.log(
+					'Demo: Düz grafik durumu sona erdi, oksijen molası timer sıfırlandı:',
+					sessionStatus.zaman
+				);
+				alarmSet(
+					'oxygenBreak',
+					'Please remove your mask for an oxygen break.',
+					0
+				);
+			}
 		}
 
 		// Check if step (adım) has changed
@@ -908,19 +773,7 @@ function read() {
 		var difference =
 			parseFloat(sessionStatus.hedef) - parseFloat(sessionStatus.main_fsw);
 		sessionStatus.bufferdifference[sessionStatus.zaman] = difference;
-		sessionStatus.olcum.push(sessionStatus.main_fsw);
-
-		// Update pressurization rate metrics
-		const rateFsw = computePressurizationRate(60);
-		sessionStatus.pressRateFswPerMin = rateFsw;
-		sessionStatus.pressRateBarPerMin = rateFsw / 33.4;
-
-		console.log(
-			'pressRateFswPerMin :',
-			sessionStatus.pressRateFswPerMin,
-			'pressRateBarPerMin :',
-			sessionStatus.pressRateBarPerMin
-		);
+		sessionStatus.olcum.push(sessionStatus.pressure);
 
 		console.log('difference :', difference);
 
@@ -952,40 +805,12 @@ function read() {
 				sessionStatus.diffrencesayac++;
 			}
 
-			if (
-				sessionStatus.diffrencesayac > 10 &&
-				sessionStatus.otomanuel == 0 &&
-				sessionStatus.deviationAlarm == false
-			) {
-				alarmSet(
-					'deviation',
-					'Session paused ! Deviation in the session graph ! Check the compressor and air supply system.',
-					0
-				);
-
-				sessionStatus.status = 2;
-				sessionStatus.otomanuel = 1;
-				sessionStatus.pauseTime = sessionStatus.zaman;
-				sessionStatus.pauseDepth = sensorData['pressure'];
-				compValve(0);
-				decompValve(35);
-				compValve(0);
-				setTimeout(() => {
-					decompValve(0);
-				}, 15000);
-
-				console.log(
-					'sessionPause',
-					sessionStatus.pauseTime,
-					sessionStatus.pauseDepth
-				);
-
-				sessionStatus.deviationAlarm = true;
-				setTimeout(() => {
-					sessionStatus.deviationAlarm = false;
-					sessionStatus.diffrencesayac = 0;
-				}, 600000);
-			}
+			// if (sessionStatus.diffrencesayac > 10 && sessionStatus.otomanuel == 0 && (sessionStatus.alarmzaman + 300 < sessionStatus.zaman || sessionStatus.alarmzaman == 0)) {
+			//     alarmSet('deviation', 'Deviation ! Please Check The Compressor and Air Supply System.', 0);
+			//     sessionStatus.alarmzaman = sessionStatus.zaman;
+			//     sessionStatus.diffrencesayac = 0;
+			//     sessionStatus.uyaridurum = 1;
+			// }
 
 			// Otomatik kontrol
 			if (
@@ -1009,8 +834,6 @@ function read() {
 					sessionStatus.comp_offset +
 					sessionStatus.comp_gain * difference +
 					sessionStatus.fsw / sessionStatus.comp_depth;
-				if (sessionStatus.pcontrol < sessionStatus.minimumvalve)
-					sessionStatus.pcontrol = sessionStatus.minimumvalve;
 
 				// Dekompresyon kontrolü
 				var control =
@@ -1018,19 +841,35 @@ function read() {
 					sessionStatus.decomp_gain * difference +
 					sessionStatus.decomp_depth / sessionStatus.fsw;
 
+				if (sessionStatus.zaman < 90 && sessionStatus.main_fsw < 4)
+					sessionStatus.pcontrol = sessionStatus.pcontrol * 1.4;
+
 				// Vana kontrolü
 				if (sessionStatus.ventil == 0) {
 					if (sessionStatus.grafikdurum == 1) {
-						// Yükseliş
 						if (difference > 0.1) {
+							console.log('11');
+
+							if (control < 5) control = 5;
 							compValve(sessionStatus.pcontrol);
 							decompValve(0);
+						}
+
+						if (avgDifference < -5) {
+							console.log('14');
+							compValve(0);
+							if (Math.abs(control) > 13)
+								decompValve(Math.abs(sessionStatus.pcontrol));
 						} else if (avgDifference < -0.6) {
+							console.log('12');
+							if (control < 5) control = 5;
 							compValve(sessionStatus.minimumvalve);
 							decompValve(0);
-						} else if (avgDifference < -1.5) {
+						}
+
+						if (avgDifference < -1.1) {
+							console.log('13');
 							compValve(0);
-							decompValve(0);
 						}
 					} else if (sessionStatus.grafikdurum == 2) {
 						// Düz
@@ -1173,16 +1012,6 @@ function read() {
 					duzGrafikBaslangicZamani: 0,
 					sonOksijenMolasi: 0,
 					oksijenMolasiAktif: false,
-					// Basınç oranı hesaplama için
-					pressRateFswPerMin: 0,
-					pressRateBarPerMin: 0,
-					// Deviation alarm için
-					deviationAlarm: false,
-					// Profile bazlı oksijen kontrolü için
-					oksijenBaslangicZamani: 0,
-					oksijenBitisZamani: 0,
-					highHumidity: false,
-					humidityAlarmLevel: 70,
 				};
 				global.sessionStatus = sessionStatus;
 			}
@@ -1231,11 +1060,8 @@ function read() {
 function read_demo() {
 	// Simulate sensor values based on profile
 	console.log(
-		'status',
 		sessionStatus.status,
-		'zaman',
 		sessionStatus.zaman,
-		'grafikdurum',
 		sessionStatus.grafikdurum
 	);
 
@@ -1252,45 +1078,36 @@ function read_demo() {
 
 	// Sistem aktifse kontrol et
 	if (sessionStatus.status > 0 && sessionStatus.zaman > 5) {
-		// Simulate pressure based on profile (demo mode)
+		// Simulate pressure based on profile (demo mode)zaxaza
 		if (
 			sessionStatus.profile.length > sessionStatus.zaman &&
 			sessionStatus.profile[sessionStatus.zaman]
 		) {
-			const rawPressure = sessionStatus.profile[sessionStatus.zaman][1];
-			sensorData['pressure'] = filters.pressure.update(rawPressure);
+			sensorData['pressure'] = sessionStatus.profile[sessionStatus.zaman][1];
 			sessionStatus.hedef =
 				sessionStatus.profile[sessionStatus.zaman][1] * 33.4;
 		} else if (
 			sessionStatus.profile.length > 0 &&
 			sessionStatus.profile[sessionStatus.profile.length - 1]
 		) {
-			const rawPressure =
+			sensorData['pressure'] =
 				sessionStatus.profile[sessionStatus.profile.length - 1][1];
-			sensorData['pressure'] = filters.pressure.update(rawPressure);
 			sessionStatus.hedef =
 				sessionStatus.profile[sessionStatus.profile.length - 1][1] * 33.4;
 		} else {
-			sensorData['pressure'] = filters.pressure.update(0);
+			sensorData['pressure'] = 0;
 			sessionStatus.hedef = 0;
 		}
 
 		// Simulate other sensor data
-		sensorData['o2'] = filters.o2.update(21.1);
-		sensorData['temperature'] = filters.temperature.update(
-			22.5 + (Math.random() * 2 - 1)
-		); // 21.5-23.5°C
-		sensorData['humidity'] = filters.humidity.update(
-			45 + (Math.random() * 10 - 5)
-		); // 40-50%
-		sensorData['pressure'] = filters.pressure.update(0);
+		sensorData['o2'] = 21.1;
+		sensorData['temperature'] = 22.5 + (Math.random() * 2 - 1); // 21.5-23.5°C
+		sensorData['humidity'] = 45 + (Math.random() * 10 - 5); // 40-50%
 
 		// Update session status with simulated data
+		sensorData['pressure'] = sessionStatus.hedef / 33.4;
 		sessionStatus.pressure = sessionStatus.hedef / 33.4;
 		sessionStatus.main_fsw = sessionStatus.hedef / 33.4;
-		sensorData['pressure'] = filters.pressure.update(
-			sessionStatus.hedef / 33.4
-		);
 		sessionStatus.o2 = sensorData['o2'];
 
 		// Çıkış durumunda hedefi sıfırla
@@ -1328,49 +1145,67 @@ function read_demo() {
 			sessionStatus.grafikdurum = 0; // Default to descent when at end
 		}
 
-		// Profile bazlı oksijen kontrolü (demo mode)
-		if (
-			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'air' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'o' &&
-			sessionStatus.oksijen == 0
-		) {
-			sessionStatus.oksijen = 1;
-			alarmSet('oxygenBreak', 'Oxygen Starting. Put the mask on.', 0);
-		} else if (
-			sessionStatus.lastdurum === 2 &&
-			sessionStatus.cikis == 0 &&
-			sessionStatus.grafikdurum == 0
-		) {
-			sessionStatus.oksijen = 0;
-			sessionStatus.oksijenBaslangicZamani = 0;
-			sessionStatus.oksijenBitisZamani = 0;
+		// Oksijen molası kontrolü - Düz grafik durumunda (demo mode)
+		if (sessionStatus.grafikdurum === 2) {
+			// Düz grafik durumunun başlangıcını kaydet
+			if (sessionStatus.lastdurum !== 2 && sessionStatus.cikis == 0) {
+				sessionStatus.duzGrafikBaslangicZamani = sessionStatus.zaman;
+				sessionStatus.sonOksijenMolasi = sessionStatus.zaman;
+				console.log(
+					'Demo: Düz grafik durumu başladı, oksijen molası timer başlatıldı:',
+					sessionStatus.zaman
+				);
+				alarmSet('oxygenBreak', 'Please wear your mask. ', 900);
+			}
 
-			alarmSet(
-				'treatmenFinished',
-				'Treatment Finished. Take the mask off. Decompression Starting.',
-				0
-			);
+			// Her 15 dakikada (900 saniye) bir oksijen molası uyarısı
+			const dakika15Saniye = 15 * 60; // 900 saniye
+			const dakika5Saniye = 5 * 60; // 300 saniye
+			const gecenSure = sessionStatus.zaman - sessionStatus.sonOksijenMolasi;
 
-			console.log(
-				'Değişti : oksijen',
-				sessionStatus.oksijen,
-				'oksijenBaslangicZamani',
-				sessionStatus.oksijenBaslangicZamani,
-				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
-			);
-		} else if (
-			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'air' &&
-			sessionStatus.oksijen == 1
-		) {
-			sessionStatus.oksijen = 0;
+			// 15 dakika geçtiyse ve henüz uyarı aktif değilse
+			if (
+				gecenSure >= dakika15Saniye &&
+				!sessionStatus.oksijenMolasiAktif &&
+				sessionStatus.cikis == 0
+			) {
+				alarmSet(
+					'oxygenBreak',
+					'Please take off your mask. Oxygen Break.',
+					dakika5Saniye
+				);
+				sessionStatus.oksijenMolasiAktif = true;
+				sessionStatus.sonOksijenMolasi = sessionStatus.zaman;
+				console.log(
+					'Demo: Oksijen molası uyarısı verildi:',
+					sessionStatus.zaman
+				);
+			}
 
-			alarmSet('oxygenBreak', 'Oxygen Stopped. Take the mask off.', 0);
+			// 5 dakika sonra uyarıyı kapatx
+			if (
+				sessionStatus.oksijenMolasiAktif &&
+				sessionStatus.zaman - sessionStatus.sonOksijenMolasi >= dakika5Saniye &&
+				sessionStatus.cikis == 0
+			) {
+				sessionStatus.oksijenMolasiAktif = false;
+				console.log(
+					'Demo: Oksijen molası uyarısı sona erdi:',
+					sessionStatus.zaman
+				);
+				alarmSet('oxygenBreak', 'Please wear your mask.', 0);
+			}
+		} else {
+			// Düz durumdan çıkıldığında timer'ları sıfırla
+			if (sessionStatus.lastdurum === 2 && sessionStatus.cikis == 0) {
+				sessionStatus.duzGrafikBaslangicZamani = 0;
+				sessionStatus.oksijenMolasiAktif = false;
+				console.log(
+					'Demo: Düz grafik durumu sona erdi, oksijen molası timer sıfırlandı:',
+					sessionStatus.zaman
+				);
+				alarmSet('oxygenBreak', 'Please take off your mask.', 0);
+			}
 		}
 
 		// Check if step (adım) has changed
@@ -1413,12 +1248,7 @@ function read_demo() {
 		var difference =
 			parseFloat(sessionStatus.hedef) - parseFloat(sessionStatus.main_fsw);
 		sessionStatus.bufferdifference[sessionStatus.zaman] = difference;
-		sessionStatus.olcum.push(sessionStatus.main_fsw);
-
-		// Update pressurization rate metrics (demo flow)
-		const rateFsw = computePressurizationRate(60);
-		sessionStatus.pressRateFswPerMin = rateFsw;
-		sessionStatus.pressRateBarPerMin = rateFsw / 33.4;
+		sessionStatus.olcum.push(sessionStatus.pressure);
 
 		console.log('difference (demo):', difference);
 		console.log(
@@ -1632,16 +1462,6 @@ function read_demo() {
 					duzGrafikBaslangicZamani: 0,
 					sonOksijenMolasi: 0,
 					oksijenMolasiAktif: false,
-					// Basınç oranı hesaplama için
-					pressRateFswPerMin: 0,
-					pressRateBarPerMin: 0,
-					// Deviation alarm için
-					deviationAlarm: false,
-					// Profile bazlı oksijen kontrolü için
-					oksijenBaslangicZamani: 0,
-					oksijenBitisZamani: 0,
-					highHumidity: false,
-					humidityAlarmLevel: 70,
 				};
 				global.sessionStatus = sessionStatus;
 			}
@@ -1661,7 +1481,6 @@ function read_demo() {
 		var s_display = zeroPad(sessionStatus.zaman % 60, 2);
 
 		console.log('Demo time:', m_display + ':' + s_display);
-		console.log('');
 
 		// Yüksek oksijen kontrolü (simulated)
 		if (sessionStatus.mainov > sessionStatus.higho2) {
@@ -2321,6 +2140,241 @@ const quickProfile = ProfileUtils.createQuickProfile(defaultSetProfile);
 sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 function sensorCalibration() {}
+
+async function createChart() {
+	try {
+		// Check if we have session profile data
+		if (!sessionStatus || !sessionStatus.profile) {
+			console.log('No profile data found');
+			chartIsBusy = false;
+			return;
+		}
+		if (sessionStatus.status == 0 || sessionStatus.cikis == 3) {
+			console.log('Session is not running');
+			chartIsBusy = false;
+			return;
+		}
+
+		const profile = sessionStatus.profile;
+
+		// Convert profile data to pressure points with time labels
+		const timeLabels = [];
+		const pressureData = [];
+		const measurementData = [];
+
+		if (profile.length > 0) {
+			let cumulativeTime = 0;
+			profile.forEach((segment, index) => {
+				// Use index as time in seconds (since profile is second-based)
+				pressureData.push({
+					x: index,
+					y: segment[1],
+				});
+				if (sessionStatus.olcum.length > index) {
+					measurementData.push({
+						x: index,
+						y: Number(sessionStatus.olcum[index].toFixed(4)),
+					});
+				}
+			});
+		} else {
+			timeLabels.push('00:00');
+			pressureData.push(0);
+			measurementData.push(0);
+		}
+
+		//console.log('measurementData', measurementData);
+		//console.log('pressureData', pressureData);
+
+		// Create oxygen period annotations
+		const oxygenAnnotations = {};
+		let currentOxygenStart = null;
+		let annotationIndex = 0;
+
+		// Get maximum pressure value for annotation height, with fallback
+		const maxPressure =
+			pressureData.length > 0 ? Math.max(...pressureData.map((p) => p.y)) : 2;
+
+		profile.forEach((segment, index) => {
+			const gasType = segment[2]; // Get gas type from profile segment
+
+			if (gasType === 'o' && currentOxygenStart === null) {
+				// Start of oxygen period
+				currentOxygenStart = index;
+			} else if (gasType !== 'o' && currentOxygenStart !== null) {
+				// End of oxygen period
+				oxygenAnnotations[`oxygen${annotationIndex}`] = {
+					type: 'box',
+					xMin: currentOxygenStart,
+					xMax: index - 1,
+					yMin: 0,
+					yMax: maxPressure,
+					backgroundColor: 'rgba(0, 255, 0, 0.3)',
+					borderColor: 'rgba(0, 255, 0, 0.3)',
+					borderWidth: 0,
+					drawTime: 'beforeDatasetsDraw',
+				};
+				currentOxygenStart = null;
+				annotationIndex++;
+			}
+		});
+
+		// Handle case where oxygen period extends to end of profile
+		if (currentOxygenStart !== null) {
+			oxygenAnnotations[`oxygen${annotationIndex}`] = {
+				type: 'box',
+				xMin: currentOxygenStart,
+				xMax: profile.length - 1,
+				yMin: 0,
+				yMax: maxPressure + 0.5,
+				backgroundColor: 'rgba(0, 255, 0, 0.1)',
+				borderColor: 'rgba(0, 255, 0, 0.3)',
+				borderWidth: 1,
+				drawTime: 'beforeDatasetsDraw',
+				label: {
+					display: true,
+					content: 'O₂',
+					position: 'start',
+					color: 'rgba(0, 255, 0, 0.8)',
+					font: {
+						size: 12,
+						weight: 'bold',
+					},
+				},
+			};
+		}
+
+		console.log(
+			`Created ${
+				Object.keys(oxygenAnnotations).length
+			} oxygen annotations for chart`
+		);
+		if (Object.keys(oxygenAnnotations).length > 0) {
+			console.log('Oxygen annotations:', Object.keys(oxygenAnnotations));
+		}
+
+		// Chart.js configuration
+		const chartConfig = {
+			type: 'line',
+			data: {
+				datasets: [
+					{
+						label: 'Actual Measurement',
+						data: measurementData,
+						borderColor: '#FF0000',
+						borderWidth: 8,
+						pointRadius: 5,
+						pointHoverRadius: 4,
+						tension: 0.1,
+						fill: false,
+					},
+					{
+						label: 'Target Pressure',
+						data: pressureData,
+						borderColor: '#7c3aed',
+						borderWidth: 6,
+						pointRadius: 5,
+						pointHoverRadius: 4,
+						tension: 0.1,
+						fill: false,
+					},
+				],
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: {
+						display: false,
+					},
+					title: {
+						display: false,
+					},
+					annotation: {
+						annotations: oxygenAnnotations,
+					},
+				},
+				scales: {
+					x: {
+						type: 'linear',
+						display: true,
+						title: {
+							display: false,
+						},
+						grid: {
+							color: 'rgba(255,255,255,0.2)',
+							lineWidth: 2,
+						},
+						ticks: {
+							stepSize: 60, // Show label every 60 seconds (1 minute)
+							maxTicksLimit: 10, // Maximum number of ticks to show
+							callback: function (value, index, values) {
+								// Convert seconds to mm:ss format
+								const totalSeconds = Math.floor(value);
+								const minutes = Math.floor(totalSeconds / 60);
+								const seconds = totalSeconds % 60;
+								return (
+									minutes.toString().padStart(2, '0') +
+									':' +
+									seconds.toString().padStart(2, '0')
+								);
+							},
+							color: 'rgba(255,255,255,0.8)',
+						},
+					},
+					y: {
+						display: true,
+						title: {
+							display: false,
+						},
+						min: 0,
+						grid: {
+							color: 'rgba(255, 255, 255, 0.2)',
+							lineWidth: 1,
+						},
+						ticks: {
+							stepSize: 0.25,
+							color: 'rgba(255, 255, 255, 0.8)',
+						},
+					},
+				},
+				interaction: {
+					intersect: false,
+					mode: 'index',
+				},
+				animation: {
+					duration: 0,
+				},
+			},
+		};
+
+		// Register the annotation plugin
+		Chart.register(annotationPlugin);
+
+		// Create Chart.js canvas renderer
+		const chartJSNodeCanvas = new ChartJSNodeCanvas({
+			width: 1400,
+			height: 325,
+			backgroundColour: 'rgba(0,0,0,0)', // Transparent background
+			plugins: {
+				modern: ['chartjs-plugin-annotation'],
+			},
+		});
+
+		// Generate chart buffer
+		const buffer = await chartJSNodeCanvas.renderToBuffer(chartConfig);
+
+		// Save to file
+		fs.writeFileSync('chart.png', buffer);
+		fs.writeFileSync('test.png', buffer); // Keep both for compatibility
+
+		chartIsBusy = false;
+		console.log('Chart saved to chart.png using Chart.js');
+	} catch (error) {
+		console.error('Chart generation error:', error);
+		chartIsBusy = false;
+	}
+}
 
 /**
  * Creates alternating oxygen and air break segments for treatment phase

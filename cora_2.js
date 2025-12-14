@@ -261,16 +261,25 @@ async function init() {
 					'air'
 				);
 
-				const quickProfile = ProfileUtils.createQuickProfile([
-					[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'],
-					[
-						sessionStatus.toplamSure -
-							(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi),
-						sessionStatus.setDerinlik,
-						'air',
-					],
-					[sessionStatus.cikisSuresi, 0, 'air'],
-				]);
+				// Calculate treatment duration
+				const treatmentDuration =
+					sessionStatus.toplamSure -
+					(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
+
+				// Create alternating oxygen/air treatment segments
+				const treatmentSegments = createAlternatingTreatmentProfile(
+					treatmentDuration,
+					sessionStatus.setDerinlik
+				);
+
+				// Build complete profile with descent, alternating treatment, and ascent
+				const setProfile = [
+					[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
+					...treatmentSegments, // Alternating oxygen/air treatment phases
+					[sessionStatus.cikisSuresi, 0, 'air'], // Ascent phase
+				];
+
+				const quickProfile = ProfileUtils.createQuickProfile(setProfile);
 				sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 				console.log(sessionStatus.profile);
@@ -360,18 +369,27 @@ async function init() {
 
 			console.log(sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air');
 
+			// Calculate treatment duration
+			const treatmentDuration =
+				sessionStatus.toplamSure -
+				(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
+
+			// Create alternating oxygen/air treatment segments
+			const treatmentSegments = createAlternatingTreatmentProfile(
+				treatmentDuration,
+				sessionStatus.setDerinlik
+			);
+
+			// Build complete profile with descent, alternating treatment, and ascent
+			const setProfile = [
+				[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
+				...treatmentSegments, // Alternating oxygen/air treatment phases
+				[sessionStatus.cikisSuresi, 0, 'air'], // Ascent phase
+			];
+
 			const profile = new ProfileManager();
 
-			const quickProfile = ProfileUtils.createQuickProfile([
-				[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'],
-				[
-					sessionStatus.toplamSure -
-						(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi),
-					sessionStatus.setDerinlik,
-					'air',
-				],
-				[sessionStatus.cikisSuresi, 0, 'air'],
-			]);
+			const quickProfile = ProfileUtils.createQuickProfile(setProfile);
 			console.log(quickProfile);
 			sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
@@ -2031,14 +2049,65 @@ sessionStatus.setDerinlik = 1;
 
 console.log(sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air');
 
-const quickProfile = ProfileUtils.createQuickProfile([
-	[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'],
-	[
-		sessionStatus.toplamSure -
-			(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi),
-		sessionStatus.setDerinlik,
-		'air',
-	],
-	[sessionStatus.cikisSuresi, 0, 'air'],
-]);
+// Calculate treatment duration for default profile
+const defaultTreatmentDuration =
+	sessionStatus.toplamSure -
+	(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
+
+// Create alternating oxygen/air treatment segments for default profile
+const defaultTreatmentSegments = createAlternatingTreatmentProfile(
+	defaultTreatmentDuration,
+	sessionStatus.setDerinlik
+);
+
+// Build complete default profile with descent, alternating treatment, and ascent
+const defaultSetProfile = [
+	[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
+	...defaultTreatmentSegments, // Alternating oxygen/air treatment phases
+	[sessionStatus.cikisSuresi, 0, 'air'], // Ascent phase
+];
+
+const quickProfile = ProfileUtils.createQuickProfile(defaultSetProfile);
 sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
+
+/**
+ * Creates alternating oxygen and air break segments for treatment phase
+ * @param {number} treatmentDuration - Total treatment duration in minutes
+ * @param {number} depth - Treatment depth
+ * @returns {Array} Array of profile segments [duration, depth, gas_type]
+ */
+function createAlternatingTreatmentProfile(treatmentDuration, depth) {
+	const segments = [];
+	const oxygenDuration = 15; // 15 minutes oxygen
+	const airBreakDuration = 5; // 5 minutes air break
+	const cycleDuration = oxygenDuration + airBreakDuration; // 20 minutes total per cycle
+
+	let remainingTime = treatmentDuration;
+
+	while (remainingTime > 0) {
+		// Add oxygen segment
+		if (remainingTime >= oxygenDuration) {
+			segments.push([oxygenDuration, depth, 'o2']);
+			remainingTime -= oxygenDuration;
+		} else {
+			// If less than 15 minutes remaining, use remaining time for oxygen
+			segments.push([remainingTime, depth, 'o2']);
+			remainingTime = 0;
+			break;
+		}
+
+		// Add air break segment if there's still time
+		if (remainingTime > 0) {
+			if (remainingTime >= airBreakDuration) {
+				segments.push([airBreakDuration, depth, 'air']);
+				remainingTime -= airBreakDuration;
+			} else {
+				// If less than 5 minutes remaining, use remaining time for air break
+				segments.push([remainingTime, depth, 'air']);
+				remainingTime = 0;
+			}
+		}
+	}
+
+	return segments;
+}
