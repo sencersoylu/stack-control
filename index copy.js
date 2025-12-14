@@ -10,9 +10,6 @@ const { linearConversion } = require('./src/helpers');
 const db = require('./src/models');
 const { ProfileUtils, ProfileManager } = require('./profile_manager');
 const dayjs = require('dayjs');
-const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
-const Chart = require('chart.js/auto');
-const annotationPlugin = require('chartjs-plugin-annotation');
 
 let server = http.Server(app);
 const bodyParser = require('body-parser');
@@ -41,9 +38,6 @@ app.use(
 	})
 );
 app.use(allRoutes);
-
-let chartInterval = null;
-let chartIsBusy = false;
 
 let sessionStatus = {
 	status: 0, // 0: session durumu yok, 1: session başlatıldı, 2: session duraklatıldı, 3: session durduruldu
@@ -532,13 +526,6 @@ setInterval(() => {
 		});
 	}
 }, 1000);
-
-setInterval(() => {
-	if (!chartIsBusy) {
-		chartIsBusy = true;
-		createChart();
-	}
-}, 10000);
 
 // Her 3 saniyede bir livebit gönder
 
@@ -2140,241 +2127,6 @@ const quickProfile = ProfileUtils.createQuickProfile(defaultSetProfile);
 sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 function sensorCalibration() {}
-
-async function createChart() {
-	try {
-		// Check if we have session profile data
-		if (!sessionStatus || !sessionStatus.profile) {
-			console.log('No profile data found');
-			chartIsBusy = false;
-			return;
-		}
-		if (sessionStatus.status == 0 || sessionStatus.cikis == 3) {
-			console.log('Session is not running');
-			chartIsBusy = false;
-			return;
-		}
-
-		const profile = sessionStatus.profile;
-
-		// Convert profile data to pressure points with time labels
-		const timeLabels = [];
-		const pressureData = [];
-		const measurementData = [];
-
-		if (profile.length > 0) {
-			let cumulativeTime = 0;
-			profile.forEach((segment, index) => {
-				// Use index as time in seconds (since profile is second-based)
-				pressureData.push({
-					x: index,
-					y: segment[1],
-				});
-				if (sessionStatus.olcum.length > index) {
-					measurementData.push({
-						x: index,
-						y: Number(sessionStatus.olcum[index].toFixed(4)),
-					});
-				}
-			});
-		} else {
-			timeLabels.push('00:00');
-			pressureData.push(0);
-			measurementData.push(0);
-		}
-
-		//console.log('measurementData', measurementData);
-		//console.log('pressureData', pressureData);
-
-		// Create oxygen period annotations
-		const oxygenAnnotations = {};
-		let currentOxygenStart = null;
-		let annotationIndex = 0;
-
-		// Get maximum pressure value for annotation height, with fallback
-		const maxPressure =
-			pressureData.length > 0 ? Math.max(...pressureData.map((p) => p.y)) : 2;
-
-		profile.forEach((segment, index) => {
-			const gasType = segment[2]; // Get gas type from profile segment
-
-			if (gasType === 'o' && currentOxygenStart === null) {
-				// Start of oxygen period
-				currentOxygenStart = index;
-			} else if (gasType !== 'o' && currentOxygenStart !== null) {
-				// End of oxygen period
-				oxygenAnnotations[`oxygen${annotationIndex}`] = {
-					type: 'box',
-					xMin: currentOxygenStart,
-					xMax: index - 1,
-					yMin: 0,
-					yMax: maxPressure,
-					backgroundColor: 'rgba(0, 255, 0, 0.3)',
-					borderColor: 'rgba(0, 255, 0, 0.3)',
-					borderWidth: 0,
-					drawTime: 'beforeDatasetsDraw',
-				};
-				currentOxygenStart = null;
-				annotationIndex++;
-			}
-		});
-
-		// Handle case where oxygen period extends to end of profile
-		if (currentOxygenStart !== null) {
-			oxygenAnnotations[`oxygen${annotationIndex}`] = {
-				type: 'box',
-				xMin: currentOxygenStart,
-				xMax: profile.length - 1,
-				yMin: 0,
-				yMax: maxPressure + 0.5,
-				backgroundColor: 'rgba(0, 255, 0, 0.1)',
-				borderColor: 'rgba(0, 255, 0, 0.3)',
-				borderWidth: 1,
-				drawTime: 'beforeDatasetsDraw',
-				label: {
-					display: true,
-					content: 'O₂',
-					position: 'start',
-					color: 'rgba(0, 255, 0, 0.8)',
-					font: {
-						size: 12,
-						weight: 'bold',
-					},
-				},
-			};
-		}
-
-		console.log(
-			`Created ${
-				Object.keys(oxygenAnnotations).length
-			} oxygen annotations for chart`
-		);
-		if (Object.keys(oxygenAnnotations).length > 0) {
-			console.log('Oxygen annotations:', Object.keys(oxygenAnnotations));
-		}
-
-		// Chart.js configuration
-		const chartConfig = {
-			type: 'line',
-			data: {
-				datasets: [
-					{
-						label: 'Actual Measurement',
-						data: measurementData,
-						borderColor: '#FF0000',
-						borderWidth: 8,
-						pointRadius: 5,
-						pointHoverRadius: 4,
-						tension: 0.1,
-						fill: false,
-					},
-					{
-						label: 'Target Pressure',
-						data: pressureData,
-						borderColor: '#7c3aed',
-						borderWidth: 6,
-						pointRadius: 5,
-						pointHoverRadius: 4,
-						tension: 0.1,
-						fill: false,
-					},
-				],
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: {
-						display: false,
-					},
-					title: {
-						display: false,
-					},
-					annotation: {
-						annotations: oxygenAnnotations,
-					},
-				},
-				scales: {
-					x: {
-						type: 'linear',
-						display: true,
-						title: {
-							display: false,
-						},
-						grid: {
-							color: 'rgba(255,255,255,0.2)',
-							lineWidth: 2,
-						},
-						ticks: {
-							stepSize: 60, // Show label every 60 seconds (1 minute)
-							maxTicksLimit: 10, // Maximum number of ticks to show
-							callback: function (value, index, values) {
-								// Convert seconds to mm:ss format
-								const totalSeconds = Math.floor(value);
-								const minutes = Math.floor(totalSeconds / 60);
-								const seconds = totalSeconds % 60;
-								return (
-									minutes.toString().padStart(2, '0') +
-									':' +
-									seconds.toString().padStart(2, '0')
-								);
-							},
-							color: 'rgba(255,255,255,0.8)',
-						},
-					},
-					y: {
-						display: true,
-						title: {
-							display: false,
-						},
-						min: 0,
-						grid: {
-							color: 'rgba(255, 255, 255, 0.2)',
-							lineWidth: 1,
-						},
-						ticks: {
-							stepSize: 0.25,
-							color: 'rgba(255, 255, 255, 0.8)',
-						},
-					},
-				},
-				interaction: {
-					intersect: false,
-					mode: 'index',
-				},
-				animation: {
-					duration: 0,
-				},
-			},
-		};
-
-		// Register the annotation plugin
-		Chart.register(annotationPlugin);
-
-		// Create Chart.js canvas renderer
-		const chartJSNodeCanvas = new ChartJSNodeCanvas({
-			width: 1400,
-			height: 325,
-			backgroundColour: 'rgba(0,0,0,0)', // Transparent background
-			plugins: {
-				modern: ['chartjs-plugin-annotation'],
-			},
-		});
-
-		// Generate chart buffer
-		const buffer = await chartJSNodeCanvas.renderToBuffer(chartConfig);
-
-		// Save to file
-		fs.writeFileSync('chart.png', buffer);
-		fs.writeFileSync('test.png', buffer); // Keep both for compatibility
-
-		chartIsBusy = false;
-		console.log('Chart saved to chart.png using Chart.js');
-	} catch (error) {
-		console.error('Chart generation error:', error);
-		chartIsBusy = false;
-	}
-}
 
 /**
  * Creates alternating oxygen and air break segments for treatment phase
