@@ -231,8 +231,7 @@ let sessionStatus = {
 	chamberStatusText: '',
 	chamberStatusTime: null,
 	setDerinlik: 1,
-	dalisSuresi: 0,
-	cikisSuresi: 0,
+
 	toplamSure: 0,
 	eop: 0,
 	uyariyenile: 0,
@@ -734,17 +733,19 @@ async function init() {
 			} else if (dt.type == 'sessionStart') {
 				let dalisSuresi = 0;
 				let cikisSuresi = 0;
+				sessionStatus.speed = dt.data.speed;
 
-				if (dt.data.dalisSuresi == 1) {
+				if (dt.data.speed == 1) {
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.4);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.4);
+				} else if (dt.data.speed == 2) {
 					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
 					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
-				} else if (dt.data.dalisSuresi == 2) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 1);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 1);
-				} else if (dt.data.dalisSuresi == 3) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 2);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 2);
+				} else if (dt.data.speed == 3) {
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.66666666);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.66666666);
 				}
+				sessionStatus.speed = dt.data.speed;
 				sessionStatus.dalisSuresi = dalisSuresi;
 				sessionStatus.cikisSuresi = cikisSuresi;
 				sessionStatus.toplamSure = dt.data.toplamSure;
@@ -768,25 +769,6 @@ async function init() {
 					treatmentDuration,
 					sessionStatus.setDerinlik
 				);
-				if (sessionStatus.toplamSure == 80) {
-					treatmentSegments = [
-						[15, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[15, sessionStatus.setDerinlik, 'o'],
-					];
-				} else if (sessionStatus.toplamSure == 110) {
-					treatmentSegments = [
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[15, sessionStatus.setDerinlik, 'o'],
-					];
-				}
 
 				// Build complete profile with descent, alternating treatment, and ascent
 				const setProfile = [
@@ -2648,14 +2630,8 @@ function sessionStop() {
 	decompValve(0);
 	sessionFinishToZero();
 
-	// Adjust total duration (in minutes) to match the truncated profile
-	if (Array.isArray(sessionStatus.profile)) {
-		const totalSeconds = sessionStatus.profile.length;
-		const totalMinutes = Math.round(totalSeconds / 60);
-		sessionStatus.toplamSure = Number.isFinite(totalMinutes)
-			? totalMinutes
-			: sessionStatus.toplamSure;
-	}
+	// toplamSure korunur - profil uzunluğuna göre güncellenmez
+	// Kullanıcının set ettiği duration değeri korunur
 
 	sessionStatus.oksijen = 0;
 	sessionStatus.oksijenBaslangicZamani = 0;
