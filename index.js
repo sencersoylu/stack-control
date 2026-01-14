@@ -626,9 +626,9 @@ async function init() {
 			} else if (dt.type == 'light') {
 				console.log('light', dt.data.light);
 				if (dt.data.light) {
-					socket.emit('writeBit', { register: 'M0101', value: 1 });
+					socket.emit('writeBit', { register: 'M0102', value: 1 });
 				} else {
-					socket.emit('writeBit', { register: 'M0101', value: 0 });
+					socket.emit('writeBit', { register: 'M0102', value: 0 });
 				}
 			}
 		});
