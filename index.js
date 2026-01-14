@@ -19,7 +19,7 @@ const connections = []; // view soket baÄlantÄ±larÄ±nÄ±n tutulduÄu a
 let isWorking = 0;
 let isConnectedPLC = 0;
 let sensorCalibrationData = {}; // Object to store all sensor calibration data
-let demoMode = 1;
+let demoMode = 0;
 
 db.sequelize.sync({});
 
@@ -622,6 +622,13 @@ async function init() {
 					socket.emit('writeBit', { register: 'M0100', value: 1 });
 				} else {
 					socket.emit('writeBit', { register: 'M0100', value: 0 });
+				}
+			} else if (dt.type == 'light') {
+				console.log('light', dt.data.light);
+				if (dt.data.light) {
+					socket.emit('writeBit', { register: 'M0101', value: 1 });
+				} else {
+					socket.emit('writeBit', { register: 'M0101', value: 0 });
 				}
 			}
 		});
