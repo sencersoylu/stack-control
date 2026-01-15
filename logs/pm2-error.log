@@ -1,0 +1,208 @@
+2026-01-15T14:08:43: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:43:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:43:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:43:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:43:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:43:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:43:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:43:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:43:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:43:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:43:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:43:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:43: }
+2026-01-15T14:08:43: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:43:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:43:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:43:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:43:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:43:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:43:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:43:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:43:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:43:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:43:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:43:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:43: }
+2026-01-15T14:08:44: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:44:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:44:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:44:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:44:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:44:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:44:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:44:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:44:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:44:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:44:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:44:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:44: }
+2026-01-15T14:08:44: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:44:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:44:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:44:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:44:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:44:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:44:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:44:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:44:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:44:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:44:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:44:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:44: }
+2026-01-15T14:08:45: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:45:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:45:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:45:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:45:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:45:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:45:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:45:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:45:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:45:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:45:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:45:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:45: }
+2026-01-15T14:08:45: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:45:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:45:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:45:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:45:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:45:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:45:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:45:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:45:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:45:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:45:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:45:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:45: }
+2026-01-15T14:08:46: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:46:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:46:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:46:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:46:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:46:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:46:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:46:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:46: }
+2026-01-15T14:08:46: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:46:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:46:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:46:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:46:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:46:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:46:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:46:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:46: }
+2026-01-15T14:08:47: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:47:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:47:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:47:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:47:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:47:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:47:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:47:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:47: }
+2026-01-15T14:08:47: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:47:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:47:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:47:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:47:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:47:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:47:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:47:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:47: }
+2026-01-15T14:08:48: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:48:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:48:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:48:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:48:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:48:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:48:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:48:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:48: }
+2026-01-15T14:08:48: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:48:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:48:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:48:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:48:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:48:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:48:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:48:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:48: }
+2026-01-15T14:08:48: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:48:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:48:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:48:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:48:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:48:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:48:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:48:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:48: }
+2026-01-15T14:08:49: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:49:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:49:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:49:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:49:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:49:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:49:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:49:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:49:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:49:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:49:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:49:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:49: }
+2026-01-15T14:08:49: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:49:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:49:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:49:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:49:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:49:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:49:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:49:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:49:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:49:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:49:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:49:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:49: }
+2026-01-15T14:08:50: Error: /home/soyluhbo/stack-control/node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+2026-01-15T14:08:50:     at Object..node (node:internal/modules/cjs/loader:1920:18)
+2026-01-15T14:08:50:     at Module.load (node:internal/modules/cjs/loader:1481:32)
+2026-01-15T14:08:50:     at Module._load (node:internal/modules/cjs/loader:1300:12)
+2026-01-15T14:08:50:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-01-15T14:08:50:     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+2026-01-15T14:08:50:     at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+2026-01-15T14:08:50:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-01-15T14:08:50:     at require (node:internal/modules/helpers:152:16)
+2026-01-15T14:08:50:     at bindings (/home/soyluhbo/stack-control/node_modules/bindings/bindings.js:112:48)
+2026-01-15T14:08:50:     at Object.<anonymous> (/home/soyluhbo/stack-control/node_modules/sqlite3/lib/sqlite3-binding.js:1:37) {
+2026-01-15T14:08:50:   code: 'ERR_DLOPEN_FAILED'
+2026-01-15T14:08:50: }

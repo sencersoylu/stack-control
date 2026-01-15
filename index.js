@@ -95,10 +95,10 @@ let sessionStatus = {
 	ventil: 0,
 	main_fsw: 0,
 	pcontrol: 0,
-	comp_offset: 6,
+	comp_offset: 12,
 	comp_gain: 8,
 	comp_depth: 100,
-	decomp_offset: 14,
+	decomp_offset: 25,
 	decomp_gain: 7,
 	decomp_depth: 100,
 	chamberStatus: 1,
@@ -1882,7 +1882,7 @@ function compValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(4000, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(6500, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
@@ -1913,7 +1913,7 @@ function decompValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(2500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(6500, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
