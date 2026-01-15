@@ -580,14 +580,14 @@ async function init() {
 				let cikisSuresi = 0;
 
 				if (dt.data.speed == 1) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
+					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
 				} else if (dt.data.speed == 2) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
+					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				} else if (dt.data.speed == 3) {
-					dalisSuresi = Math.round(dt.data.setDerinlik * 10);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
+					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				}
 
 				sessionStatus.dalisSuresi = dalisSuresi;
