@@ -33,7 +33,7 @@ let o2Timer = null;
 // O2 Kalibrasyon verilerini saklamak iÃ§in obje
 let o2CalibrationData = {
 	point0: { raw: 0, percentage: 0 }, // %0 O2 iÃ§in analog deÄer
-	point21: { raw: 960, percentage: 21 }, // %21 O2 iÃ§in analog deÄer (varsayÄ±lan)
+	point21: { raw: 860, percentage: 21 }, // %21 O2 iÃ§in analog deÄer (varsayÄ±lan)
 	point100: { raw: 4600, percentage: 100 }, // %100 O2 iÃ§in analog deÄer
 	isCalibrated: false,
 	lastCalibrationDate: null,
@@ -405,15 +405,16 @@ async function init() {
 
 				// Use speed from data to calculate dalisSuresi and cikisSuresi
 				if (dt.data.speed == 1) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.4);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.4);
-				} else if (dt.data.speed == 2) {
 					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
 					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
+				} else if (dt.data.speed == 2) {
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 				} else if (dt.data.speed == 3) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.66666666);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.66666666);
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 1);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 				}
+
 				sessionStatus.dalisSuresi = dalisSuresi;
 				sessionStatus.cikisSuresi = cikisSuresi;
 				sessionStatus.toplamSure = dt.data.toplamSure;
@@ -536,18 +537,14 @@ async function init() {
 				let cikisSuresi = 0;
 
 				if (sessionStatus.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.4);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.4);
-				} else if (sessionStatus.speed == 2) {
 					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
 					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
+				} else if (sessionStatus.speed == 2) {
+					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				} else if (sessionStatus.speed == 3) {
-					dalisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
-					cikisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
+					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				}
 
 				sessionStatus.dalisSuresi = dalisSuresi;
@@ -561,18 +558,14 @@ async function init() {
 				let cikisSuresi = 0;
 
 				if (sessionStatus.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.4);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.4);
-				} else if (sessionStatus.speed == 2) {
 					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
 					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
+				} else if (sessionStatus.speed == 2) {
+					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				} else if (sessionStatus.speed == 3) {
-					dalisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
-					cikisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
+					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
+					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
 				}
 
 				sessionStatus.dalisSuresi = dalisSuresi;
@@ -587,18 +580,14 @@ async function init() {
 				let cikisSuresi = 0;
 
 				if (dt.data.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.4);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
 				} else if (dt.data.speed == 2) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
+					dalisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 				} else if (dt.data.speed == 3) {
-					dalisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
-					cikisSuresi = Math.round(
-						(sessionStatus.setDerinlik * 10) / 0.66666666
-					);
+					dalisSuresi = Math.round(dt.data.setDerinlik * 10);
+					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 				}
 
 				sessionStatus.dalisSuresi = dalisSuresi;
@@ -640,15 +629,16 @@ async function init() {
 			let cikisSuresi = 0;
 			// Use speed from data to calculate dalisSuresi and cikisSuresi
 			if (dt.speed == 1) {
-				dalisSuresi = Math.round((dt.setDerinlik * 10) / 0.4);
-				cikisSuresi = Math.round((dt.setDerinlik * 10) / 0.4);
+				dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
+				cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
 			} else if (dt.speed == 2) {
-				dalisSuresi = Math.round((dt.setDerinlik * 10) / 0.5);
-				cikisSuresi = Math.round((dt.setDerinlik * 10) / 0.5);
+				dalisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
+				cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 			} else if (dt.speed == 3) {
-				dalisSuresi = Math.round((dt.setDerinlik * 10) / 0.66666666);
-				cikisSuresi = Math.round((dt.setDerinlik * 10) / 0.66666666);
+				dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 1);
+				cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
 			}
+			cikisSuresi = Math.round(dt.data.setDerinlik * 10);
 
 			sessionStatus.speed = dt.speed;
 
@@ -2499,25 +2489,6 @@ function createChart() {
 		safeTreatmentDuration,
 		sessionStatus.setDerinlik
 	);
-	if (sessionStatus.toplamSure == 80) {
-		treatmentSegments = [
-			[15, sessionStatus.setDerinlik, 'o'],
-			[5, sessionStatus.setDerinlik, 'air'],
-			[20, sessionStatus.setDerinlik, 'o'],
-			[5, sessionStatus.setDerinlik, 'air'],
-			[15, sessionStatus.setDerinlik, 'o'],
-		];
-	} else if (sessionStatus.toplamSure == 110) {
-		treatmentSegments = [
-			[20, sessionStatus.setDerinlik, 'o'],
-			[5, sessionStatus.setDerinlik, 'air'],
-			[20, sessionStatus.setDerinlik, 'o'],
-			[5, sessionStatus.setDerinlik, 'air'],
-			[20, sessionStatus.setDerinlik, 'o'],
-			[5, sessionStatus.setDerinlik, 'air'],
-			[15, sessionStatus.setDerinlik, 'o'],
-		];
-	}
 
 	// Build complete profile with descent, alternating treatment, and ascent
 	const setProfileRaw = [
