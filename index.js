@@ -2179,7 +2179,7 @@ function sessionStop() {
 	);
 
 	// Seans kaydını tamamla
-	completeSessionRecord('stopped');
+	//completeSessionRecord('stopped');
 }
 
 /**
