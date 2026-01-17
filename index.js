@@ -468,7 +468,17 @@ async function init() {
 				sessionStatus.pauseTime = sessionStatus.zaman;
 				sessionStatus.pauseDepth = sensorData['pressure'];
 				compValve(0);
-				decompValve(0);
+				decompValve(35);
+				compValve(0);
+				setTimeout(() => {
+					decompValve(0);
+				}, 15000);
+
+				console.log(
+					'sessionPause',
+					sessionStatus.pauseTime,
+					sessionStatus.pauseDepth
+				);
 			} else if (dt.type == 'sessionResume') {
 				// Calculate resume parameters
 				const pauseEndTime = sessionStatus.zaman;
@@ -1942,124 +1952,106 @@ function sessionResume(
 
 	const currentDepth = currentStep[1];
 	const nextDepth = nextStep[1];
-	const depthDifference = nextDepth - currentDepth;
+	const depthDifference = nextDepth - currentPressure;
 
-	// Handle ascending profile (depth increasing)
-	if (depthDifference > 0) {
-		const originalDuration = currentStep[0];
-		const originalTargetDepth = currentStep[1];
+	// Tüm profiller saniye bazlı ve basınç her saniye eğriye göre değişmeli
+	// Bu nedenle pause aralığını saniye saniye sabit basınçla dolduruyoruz
+	// ardından mevcut adımın hedef basıncına saniye saniye interpolasyonla geri dönüyoruz
 
-		// Calculate slope from previous step
-		let slope = 0;
-		if (pauseStartTime > 0) {
-			const prevStep = sessionStatus.profile[pauseStartTime - 1];
-			slope = (originalTargetDepth - prevStep[1]) / originalDuration;
+	// Geçerli adım numarası (1-based). Yoksa mümkünse bir önceki saniyeden al
+	let stepIndexVal =
+		(currentStep && currentStep.length >= 4 && currentStep[3]) ||
+		(pauseStartTime > 0 && sessionStatus.profile[pauseStartTime - 1]
+			? sessionStatus.profile[pauseStartTime - 1][3]
+			: 1);
+
+	// Orijinal hedef basıncı belirle (adımın hedefi)
+	let originalTargetDepth = currentStep[1];
+	if (
+		Array.isArray(sessionStatus.profileSteps) &&
+		sessionStatus.profileSteps[stepIndexVal - 1]
+	) {
+		originalTargetDepth = sessionStatus.profileSteps[stepIndexVal - 1][1];
+	} else {
+		// profileSteps yoksa, aynı adım numarası devam ettiği son saniyenin basıncını kullan
+		let t = pauseStartTime;
+		let lastInStep = t;
+		while (
+			t + 1 < sessionStatus.profile.length &&
+			Array.isArray(sessionStatus.profile[t + 1]) &&
+			sessionStatus.profile[t + 1].length >= 4 &&
+			sessionStatus.profile[t + 1][3] === stepIndexVal
+		) {
+			t++;
+			lastInStep = t;
 		}
-
-		// Calculate time needed to reach target from current position
-		const remainingDepthChange = originalTargetDepth - currentPressure;
-		const timeToTarget = remainingDepthChange / slope;
-
-		// Update current step duration
-		sessionStatus.profile[pauseStartTime] = [
-			Number((stepDuration / 60).toFixed(4)),
-			initialPressure,
-			currentStep[2],
-		];
-
-		// Insert pause segment
-		sessionStatus.profile.splice(pauseStartTime + 1, 0, [
-			Number((pauseDuration / 60).toFixed(4)),
-			currentPressure,
-			'air',
-		]);
-
-		// Insert recovery segment to reach original target
-		sessionStatus.profile.splice(pauseStartTime + 2, 0, [
-			Number(timeToTarget.toFixed(4)),
-			originalTargetDepth,
-			'air',
-		]);
+		if (sessionStatus.profile[lastInStep]) {
+			originalTargetDepth = sessionStatus.profile[lastInStep][1];
+		}
 	}
-	// Handle flat profile (same depth)
-	else if (depthDifference === 0) {
-		const originalDuration = currentStep[0];
-		const originalTargetDepth = currentStep[1];
 
-		// Calculate slope from first step
-		let slope = 0;
-		if (sessionStatus.profile[0]) {
-			slope = sessionStatus.profile[0][1] / sessionStatus.profile[0][0];
-		}
-
-		const timeToTarget = (originalTargetDepth - currentPressure) / slope;
-
-		// Update current step
-		sessionStatus.profile[pauseStartTime] = [
-			Number((stepDuration / 60).toFixed(4)),
-			initialPressure,
-			currentStep[2],
+	// Pause aralığını sabit basınçla güncelle
+	for (
+		let t = pauseStartTime;
+		t < pauseEndTime && t < sessionStatus.profile.length;
+		t++
+	) {
+		const existing = sessionStatus.profile[t] || [];
+		const existingType = existing[2] || 'air';
+		const existingStep = (existing.length >= 4 && existing[3]) || stepIndexVal;
+		// [zaman(s), basınç, tip, adım]
+		sessionStatus.profile[t] = [
+			// zaman sütunu dizin+1 olacak şekilde tutulur
+			t + 1,
+			Number(currentPressure.toFixed(4)),
+			'air',
+			existingStep,
 		];
-
-		// Insert pause segment
-		sessionStatus.profile.splice(pauseStartTime + 1, 0, [
-			Number((pauseDuration / 60).toFixed(4)),
-			currentPressure,
-			'air',
-		]);
-
-		// Insert recovery segment
-		sessionStatus.profile.splice(pauseStartTime + 2, 0, [
-			Number(Math.abs(timeToTarget).toFixed(4)),
-			originalTargetDepth,
-			'air',
-		]);
-
-		// Insert remaining flat segment
-		const remainingFlatTime = originalDuration - stepDuration / 60;
-		sessionStatus.profile.splice(pauseStartTime + 3, 0, [
-			Number(Math.abs(remainingFlatTime).toFixed(4)),
-			originalTargetDepth,
-			currentStep[2],
-		]);
 	}
-	// Handle descending profile (depth decreasing)
-	else if (depthDifference < 0) {
-		const originalDuration = currentStep[0];
-		const originalTargetDepth = currentStep[1];
 
-		// Calculate slope from last decompression step
-		let slope = 0;
-		const profileLength = sessionStatus.profile.length;
-		if (profileLength >= 2) {
-			const lastStep = sessionStatus.profile[profileLength - 2];
-			const finalStep = sessionStatus.profile[profileLength - 1];
-			slope = lastStep[1] / finalStep[0];
-		}
+	// Bir önceki eğimin büyüklüğünü saniye başına hesapla
+	let slope = 0;
+	if (pauseStartTime > 0) {
+		const prevP = sessionStatus.profile[pauseStartTime - 1]
+			? sessionStatus.profile[pauseStartTime - 1][1]
+			: currentPressure;
+		const currP = currentStep[1];
+		slope = Math.abs(currP - prevP);
+	}
+	if (slope === 0) {
+		// İleri farkı dene
+		const nextP = nextStep[1];
+		slope = Math.abs(nextP - currentStep[1]);
+	}
 
-		const depthChangeNeeded = currentPressure - originalTargetDepth;
-		const timeToTarget = depthChangeNeeded / slope;
+	const remainingDepthChange = originalTargetDepth - currentPressure;
+	const absSlope = Math.abs(slope);
+	let timeToTarget =
+		absSlope > 0 ? Math.ceil(Math.abs(remainingDepthChange) / absSlope) : 0;
+	if (timeToTarget < 0 || !isFinite(timeToTarget)) timeToTarget = 0;
 
-		// Update current step
-		sessionStatus.profile[pauseStartTime] = [
-			Number((stepDuration / 60).toFixed(4)),
-			initialPressure,
-			currentStep[2],
+	// Profil uzunluğu içinde kal
+	const maxAvailable = Math.max(0, sessionStatus.profile.length - pauseEndTime);
+	timeToTarget = Math.min(timeToTarget, maxAvailable);
+
+	// Hedefe geri dönmek için saniye saniye interpolasyon uygula
+	for (let s = 1; s <= timeToTarget; s++) {
+		const idx = pauseEndTime + (s - 1);
+		if (idx >= sessionStatus.profile.length) break;
+		const ratio = timeToTarget > 0 ? s / timeToTarget : 1;
+		const interp = currentPressure + remainingDepthChange * ratio;
+		const existing = sessionStatus.profile[idx] || [];
+		const type =
+			Array.isArray(sessionStatus.profileSteps) &&
+			sessionStatus.profileSteps[stepIndexVal - 1]
+				? sessionStatus.profileSteps[stepIndexVal - 1][2]
+				: existing[2] || 'air';
+		sessionStatus.profile[idx] = [
+			idx + 1,
+			Number(interp.toFixed(4)),
+			type,
+			stepIndexVal,
 		];
-
-		// Insert pause segment
-		sessionStatus.profile.splice(pauseStartTime + 1, 0, [
-			Number((pauseDuration / 60).toFixed(4)),
-			currentPressure,
-			'air',
-		]);
-
-		// Insert recovery segment
-		sessionStatus.profile.splice(pauseStartTime + 2, 0, [
-			Number(Math.abs(timeToTarget).toFixed(4)),
-			originalTargetDepth,
-			currentStep[2],
-		]);
 	}
 
 	// Reset control variables
@@ -2162,8 +2154,14 @@ function sessionStop() {
 	decompValve(0);
 	sessionFinishToZero();
 
-	// toplamSure korunur - profil uzunluğuna göre güncellenmez
-	// Kullanıcının set ettiği duration değeri korunur
+	// Adjust total duration (in minutes) to match the truncated profile
+	if (Array.isArray(sessionStatus.profile)) {
+		const totalSeconds = sessionStatus.profile.length;
+		const totalMinutes = Math.round(totalSeconds / 60);
+		sessionStatus.toplamSure = Number.isFinite(totalMinutes)
+			? totalMinutes
+			: sessionStatus.toplamSure;
+	}
 
 	sessionStatus.oksijen = 0;
 	sessionStatus.oksijenBaslangicZamani = 0;
@@ -2179,6 +2177,9 @@ function sessionStop() {
 		'Session stop initiated. Decompressing to surface.',
 		0
 	);
+
+	// Seans kaydını tamamla
+	completeSessionRecord('stopped');
 }
 
 /**
