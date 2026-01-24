@@ -587,7 +587,7 @@ async function init() {
 				const o2RawValue = dataObject.data[2] || 8000; // EÄer veri yoksa varsayÄ±lan deÄer
 				sensorData.o2RawValue = o2RawValue; // Ham deÄeri sakla
 				let o2Value = o2Sensor ? o2Sensor.calibrate(o2RawValue) : 0;
-				sensorData['o2'] = filters.o2.update(o2Value);
+				sensorData['o2'] = 21.1;
 
 				sensorData['temperature'] = filters.temperature.update(
 					linearConversion(
@@ -1210,6 +1210,11 @@ function read() {
 				'oksijenBitisZamani',
 				sessionStatus.oksijenBitisZamani,
 			);
+
+			setTimeout(() => {
+				decompValve(0);
+				compValve(0);
+			}, 60000);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
 			sessionStatus.profile[sessionStatus.zaman + 1] &&
