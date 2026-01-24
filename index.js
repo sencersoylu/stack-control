@@ -19,9 +19,172 @@ const connections = []; // view soket baÄlantÄ±larÄ±nÄ±n tutulduÄu a
 let isWorking = 0;
 let isConnectedPLC = 0;
 let sensorCalibrationData = {}; // Object to store all sensor calibration data
+global.sensorCalibrationData = sensorCalibrationData; // Make it globally accessible
 let demoMode = 0;
 
-db.sequelize.sync({});
+// Global app config - veritabanından yüklenecek
+global.appConfig = null;
+
+// Veritabanı sync işlemi init() içinde yapılacak
+
+// Varsayılan config değerleri (veritabanında config yoksa kullanılacak)
+const defaultConfigValues = {
+	projectName: 'Stack Control',
+	chamberType: 'Hyperbaric Chamber',
+	pressureLimit: 3,
+	sessionCounterLimit: 1000,
+	sessionTimeLimit: 120,
+	sessionCounter: 0,
+
+	// O2 Kalibrasyon verileri
+	o2Point0Raw: 0,
+	o2Point0Percentage: 0,
+	o2Point21Raw: 860,
+	o2Point21Percentage: 21,
+	o2Point100Raw: 4600,
+	o2Point100Percentage: 100,
+	o2AlarmValuePercentage: 23.5,
+	o2AlarmOn: false,
+
+	// Filter alpha değerleri
+	filterAlphaPressure: 0.35,
+	filterAlphaO2: 0.2,
+	filterAlphaTemperature: 0.25,
+	filterAlphaHumidity: 0.25,
+	filterAlphaCo2: 0.3,
+
+	// Kompresör kontrol parametreleri
+	compOffset: 12,
+	compGain: 8,
+	compDepth: 100,
+
+	// Dekompresyon kontrol parametreleri
+	decompOffset: 25,
+	decompGain: 7,
+	decompDepth: 100,
+
+	// Vana ayarları
+	minimumValve: 5,
+
+	// Varsayılan seans parametreleri
+	defaultDalisSuresi: 10,
+	defaultCikisSuresi: 10,
+	defaultToplamSure: 60,
+	defaultSetDerinlik: 1,
+	defaultSpeed: 1,
+
+	// Alarm seviyeleri
+	humidityAlarmLevel: 70,
+	highO2Level: 23,
+
+	// Oksijen molası ayarları
+	oxygenDuration: 15,
+	airBreakDuration: 5,
+
+	// Demo modu
+	demoMode: false,
+
+	// PLC bağlantı ayarları
+	plcIpAddress: '192.168.77.100',
+	plcPort: 4000,
+};
+
+// Config'i veritabanından yükle
+async function loadConfigFromDatabase() {
+	try {
+		let config = await db.config.findOne({ where: { id: 1 } });
+
+		// Eğer config yoksa varsayılan değerlerle oluştur
+		if (!config) {
+			console.log('Config not found in database, creating with defaults...');
+			config = await db.config.create(defaultConfigValues);
+		}
+
+		global.appConfig = config.toJSON();
+		console.log('Config loaded from database:', global.appConfig.projectName);
+
+		// Config'den değerleri uygula
+		applyConfigToApp();
+
+		return global.appConfig;
+	} catch (error) {
+		console.error('Error loading config from database:', error);
+		// Hata durumunda varsayılan değerleri kullan
+		global.appConfig = { ...defaultConfigValues };
+		applyConfigToApp();
+		return global.appConfig;
+	}
+}
+
+// Config değerlerini uygulamaya uygula
+function applyConfigToApp() {
+	if (!global.appConfig) return;
+
+	// Demo modunu güncelle
+	demoMode = global.appConfig.demoMode ? 1 : 0;
+
+	// O2 kalibrasyon verilerini güncelle
+	o2CalibrationData.point0.raw = global.appConfig.o2Point0Raw;
+	o2CalibrationData.point0.percentage = global.appConfig.o2Point0Percentage;
+	o2CalibrationData.point21.raw = global.appConfig.o2Point21Raw;
+	o2CalibrationData.point21.percentage = global.appConfig.o2Point21Percentage;
+	o2CalibrationData.point100.raw = global.appConfig.o2Point100Raw;
+	o2CalibrationData.point100.percentage = global.appConfig.o2Point100Percentage;
+	o2CalibrationData.o2AlarmValuePercentage =
+		global.appConfig.o2AlarmValuePercentage;
+	o2CalibrationData.o2AlarmOn = global.appConfig.o2AlarmOn;
+	o2CalibrationData.lastCalibrationDate = global.appConfig.o2CalibrationDate;
+
+	// Session status varsayılan değerlerini güncelle
+	sessionStatus.comp_offset = global.appConfig.compOffset;
+	sessionStatus.comp_gain = global.appConfig.compGain;
+	sessionStatus.comp_depth = global.appConfig.compDepth;
+	sessionStatus.decomp_offset = global.appConfig.decompOffset;
+	sessionStatus.decomp_gain = global.appConfig.decompGain;
+	sessionStatus.decomp_depth = global.appConfig.decompDepth;
+	sessionStatus.minimumvalve = global.appConfig.minimumValve;
+	sessionStatus.humidityAlarmLevel = global.appConfig.humidityAlarmLevel;
+
+	// Varsayılan seans parametrelerini güncelle
+	sessionStatus.dalisSuresi = global.appConfig.defaultDalisSuresi;
+	sessionStatus.cikisSuresi = global.appConfig.defaultCikisSuresi;
+	sessionStatus.toplamSure = global.appConfig.defaultToplamSure;
+	sessionStatus.setDerinlik = global.appConfig.defaultSetDerinlik;
+	sessionStatus.speed = global.appConfig.defaultSpeed;
+
+	// O2 sensörünü yeniden başlat
+	initializeO2Sensor();
+
+	// Filtreleri yeniden oluştur
+	reinitializeFilters();
+
+	// Varsayılan profili config'e göre yeniden oluştur
+	if (typeof initializeDefaultProfile === 'function') {
+		initializeDefaultProfile();
+	}
+
+	console.log('Config applied to application');
+}
+
+// Filtreleri yeniden oluştur
+function reinitializeFilters() {
+	if (!global.appConfig) return;
+
+	filters.pressure = new LowPassFilter(
+		global.appConfig.filterAlphaPressure,
+		'pressure',
+	);
+	filters.o2 = new LowPassFilter(global.appConfig.filterAlphaO2, 'o2');
+	filters.temperature = new LowPassFilter(
+		global.appConfig.filterAlphaTemperature,
+		'temperature',
+	);
+	filters.humidity = new LowPassFilter(
+		global.appConfig.filterAlphaHumidity,
+		'humidity',
+	);
+	filters.co2 = new LowPassFilter(global.appConfig.filterAlphaCo2, 'co2');
+}
 
 init();
 const allRoutes = require('./src/routes');
@@ -50,8 +213,18 @@ app.use(bodyParser.json());
 app.use(
 	bodyParser.urlencoded({
 		extended: true,
-	})
+	}),
 );
+
+// Static dosyaları sun (public klasörü)
+const path = require('path');
+app.use('/static', express.static(path.join(__dirname, 'public')));
+
+// Config sayfası endpoint'i
+app.get('/config-page', (req, res) => {
+	res.sendFile(path.join(__dirname, 'public', 'config.html'));
+});
+
 app.use(allRoutes);
 
 let sessionStatus = {
@@ -71,7 +244,7 @@ let sessionStatus = {
 	p2counter: 0,
 	tempadim: 0,
 	profile: [],
-	minimumvalve: 5,
+	minimumvalve: 20,
 	otomanuel: 0,
 	alarmzaman: 0,
 	diffrencesayac: 0,
@@ -95,10 +268,10 @@ let sessionStatus = {
 	ventil: 0,
 	main_fsw: 0,
 	pcontrol: 0,
-	comp_offset: 12,
+	comp_offset: 18,
 	comp_gain: 8,
 	comp_depth: 100,
-	decomp_offset: 25,
+	decomp_offset: 14,
 	decomp_gain: 7,
 	decomp_depth: 100,
 	chamberStatus: 1,
@@ -209,7 +382,81 @@ const filters = {
 	o2: new LowPassFilter(filterConfig.o2, 'o2'),
 	temperature: new LowPassFilter(filterConfig.temperature, 'temperature'),
 	humidity: new LowPassFilter(filterConfig.humidity, 'humidity'),
+	co2: new LowPassFilter(0.3, 'co2'),
 };
+
+// CO2 Demo Data Generator
+// Seans sırasında 550-750 ppm arasında, hafif artış trendi ile 2-3 dk'da bir salınım yapan değerler üretir
+let co2DemoState = {
+	baseValue: 550, // Başlangıç değeri
+	currentValue: 550, // Mevcut değer
+	trend: 0.05, // Saniye başına artış trendi (dakikada ~3 ppm)
+	cyclePhase: 0, // Salınım fazı (0-1 arası)
+	cycleDirection: 1, // Salınım yönü (1: yukarı, -1: aşağı)
+	lastCycleChange: 0, // Son döngü değişim zamanı
+	cycleDuration: 150, // Döngü süresi (saniye) - 2.5 dakika ortalama
+};
+
+/**
+ * CO2 demo verisi üreten fonksiyon
+ * Seans sırasında 550-750 ppm arasında gerçekçi değerler üretir
+ * @param {number} sessionTime - Seans zamanı (saniye)
+ * @param {boolean} sessionActive - Seans aktif mi?
+ * @returns {number} CO2 değeri (ppm)
+ */
+/**
+ * CO2 demo state'ini sıfırlayan fonksiyon
+ * Seans bittiğinde veya başlamadan önce çağrılır
+ */
+function resetCO2DemoState() {
+	co2DemoState.baseValue = 550;
+	co2DemoState.currentValue = 550;
+	co2DemoState.cyclePhase = 0;
+	co2DemoState.cycleDirection = 1;
+	co2DemoState.lastCycleChange = 0;
+	co2DemoState.cycleDuration = 150;
+}
+
+function generateCO2DemoData(sessionTime, sessionActive) {
+	// Seans aktif değilse normal oda havası seviyesi
+	if (!sessionActive || sessionTime <= 0) {
+		resetCO2DemoState();
+		return 400 + Math.random() * 50; // Normal oda: 400-450 ppm
+	}
+
+	// Döngü süresini dinamik yap (2-3 dakika arası rastgele)
+	if (
+		sessionTime - co2DemoState.lastCycleChange >=
+		co2DemoState.cycleDuration
+	) {
+		co2DemoState.cycleDirection *= -1; // Yönü değiştir
+		co2DemoState.lastCycleChange = sessionTime;
+		co2DemoState.cycleDuration = 120 + Math.floor(Math.random() * 60); // 120-180 saniye
+	}
+
+	// Hafif artış trendi (seans ilerledikçe CO2 biraz artar)
+	const trendIncrease = sessionTime * co2DemoState.trend;
+
+	// Sinüzoidal salınım (yumuşak geçişler için)
+	const cycleProgress =
+		(sessionTime - co2DemoState.lastCycleChange) / co2DemoState.cycleDuration;
+	const oscillation =
+		Math.sin(cycleProgress * Math.PI) * co2DemoState.cycleDirection * 30; // ±30 ppm salınım
+
+	// Rastgele küçük dalgalanmalar
+	const noise = (Math.random() - 0.5) * 10; // ±5 ppm gürültü
+
+	// Toplam değer hesapla
+	let co2Value = co2DemoState.baseValue + trendIncrease + oscillation + noise;
+
+	// Sınırlar içinde tut (550-750 ppm)
+	co2Value = Math.max(550, Math.min(750, co2Value));
+
+	// LowPass filter ile yumuşat
+	co2DemoState.currentValue = co2Value;
+
+	return Math.round(co2Value);
+}
 
 function computePressurizationRate(seconds = 60) {
 	if (!Array.isArray(sessionStatus.olcum) || sessionStatus.olcum.length < 2)
@@ -235,12 +482,20 @@ let alarmStatus = {
 async function init() {
 	console.log('**************** APP START ****************');
 
+	// Veritabanı tablolarını senkronize et (yeni sütunları ekle)
+	try {
+		await db.sequelize.sync({ alter: true });
+		console.log('Database synchronized successfully');
+	} catch (err) {
+		console.error('Database sync error:', err);
+	}
+
 	app.use(cors());
 	app.use(bodyParser.json());
 	app.use(
 		bodyParser.urlencoded({
 			extended: true,
-		})
+		}),
 	);
 
 	// ***********************************************************
@@ -250,6 +505,9 @@ async function init() {
 	// ***********************************************************
 	server.listen(4001, () => console.log(`Listening on port 4001`));
 
+	// Config'i veritabanından yükle
+	await loadConfigFromDatabase();
+
 	await loadSensorCalibrationData();
 	initializeO2Sensor();
 
@@ -258,19 +516,28 @@ async function init() {
 	}, 3000);
 
 	try {
-		socket = io.connect('http://192.168.77.100:4000', { reconnect: true });
+		// PLC bağlantı adresini config'den al
+		const plcIp = global.appConfig?.plcIpAddress || '192.168.77.100';
+		const plcPort = global.appConfig?.plcPort || 4000;
+		const plcUrl = `http://${plcIp}:${plcPort}`;
+		console.log(`Connecting to PLC at ${plcUrl}`);
+
+		socket = io.connect(plcUrl, { reconnect: true });
 		socket.on('connect', function () {
 			console.log('Connected to server');
 			//doorOpen();
 			compValve(0);
 			decompValve(0);
 			sessionStartBit(0);
+			isConnectedPLC = 1;
 
 			//socket.emit('writeRegister', JSON.stringify({address: "R03904", value: 8000}));
 		});
 		socket.on('disconnect', function () {
 			console.log('Disconnected from server');
+			isConnectedPLC = 0;
 		});
+
 		socket.on('data', async function (data) {
 			//console.log('Received message:', data);
 			const dataObject = JSON.parse(data);
@@ -310,8 +577,8 @@ async function init() {
 						sensorCalibrationData['pressure'].sensorAnalogLower,
 						sensorCalibrationData['pressure'].sensorAnalogUpper,
 						dataObject.data[1],
-						sensorCalibrationData['pressure'].sensorDecimal
-					)
+						sensorCalibrationData['pressure'].sensorDecimal,
+					),
 				);
 				sessionStatus.pressure = sensorData['pressure'];
 				sessionStatus.main_fsw = sensorData['pressure'] * 33.4;
@@ -329,8 +596,8 @@ async function init() {
 						sensorCalibrationData['temperature'].sensorAnalogLower,
 						sensorCalibrationData['temperature'].sensorAnalogUpper,
 						dataObject.data[4],
-						sensorCalibrationData['temperature'].sensorDecimal
-					)
+						sensorCalibrationData['temperature'].sensorDecimal,
+					),
 				);
 
 				sensorData['humidity'] = filters.humidity.update(
@@ -340,39 +607,39 @@ async function init() {
 						sensorCalibrationData['humidity'].sensorAnalogLower,
 						sensorCalibrationData['humidity'].sensorAnalogUpper,
 						dataObject.data[5],
-						sensorCalibrationData['humidity'].sensorDecimal
-					)
+						sensorCalibrationData['humidity'].sensorDecimal,
+					),
 				);
 
 				if (dataObject.data[1] < 2000) {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Pressure sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else if (dataObject.data[4] < 2000) {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Temperature sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else if (dataObject.data[5] < 2000) {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Humidity sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else {
 					sessionStatus.chamberStatus = 1;
 					sessionStatus.chamberStatusText = 'Chamber is ready';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				}
 				console.log(
 					sessionStatus.chamberStatus,
 					sessionStatus.chamberStatusText,
-					sessionStatus.chamberStatusTime
+					sessionStatus.chamberStatusTime,
 				);
 			} else {
 				console.log('chamberStatus problem');
@@ -428,7 +695,7 @@ async function init() {
 					'Toplam Sure : ',
 					sessionStatus.toplamSure,
 					'Derinlik : ',
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 
 				// Calculate treatment duration
@@ -439,7 +706,7 @@ async function init() {
 				// Create alternating oxygen/air treatment segments
 				const treatmentSegments = createAlternatingTreatmentProfile(
 					treatmentDuration,
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 
 				// Build complete profile with descent, alternating treatment, and ascent
@@ -477,7 +744,7 @@ async function init() {
 				console.log(
 					'sessionPause',
 					sessionStatus.pauseTime,
-					sessionStatus.pauseDepth
+					sessionStatus.pauseDepth,
 				);
 			} else if (dt.type == 'sessionResume') {
 				// Calculate resume parameters
@@ -491,7 +758,7 @@ async function init() {
 					pauseEndTime,
 					currentPressure,
 					sessionStatus.pauseDepth,
-					stepDuration
+					stepDuration,
 				);
 
 				sessionStatus.status = 1;
@@ -613,7 +880,7 @@ async function init() {
 					'Toplam Sure : ',
 					sessionStatus.toplamSure,
 					'Derinlik : ',
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 			} else if (dt.type == 'fan') {
 				console.log('fan', dt.data.fan);
@@ -668,7 +935,7 @@ async function init() {
 			// Create alternating oxygen/air treatment segments
 			const treatmentSegments = createAlternatingTreatmentProfile(
 				treatmentDuration,
-				sessionStatus.setDerinlik
+				sessionStatus.setDerinlik,
 			);
 
 			// Build complete profile with descent, alternating treatment, and ascent
@@ -706,7 +973,7 @@ async function init() {
 				pauseEndTime,
 				currentPressure,
 				sessionStatus.pauseDepth,
-				stepDuration
+				stepDuration,
 			);
 
 			sessionStatus.status = 1;
@@ -754,7 +1021,12 @@ async function loadSensorCalibrationData() {
 				sensorDecimal: Number(sensor.sensorDecimal),
 			};
 		});
-		console.log(sensorCalibrationData);
+		// Update global reference
+		global.sensorCalibrationData = sensorCalibrationData;
+		console.log(
+			'Sensor calibration data loaded:',
+			Object.keys(sensorCalibrationData),
+		);
 	} catch (error) {
 		console.error('Error reading sensor calibration data:', error);
 	}
@@ -774,7 +1046,7 @@ function initializeO2Sensor() {
 			{
 				raw: o2CalibrationData.point100.raw,
 				actual: o2CalibrationData.point100.percentage,
-			}
+			},
 		);
 		console.log('O2 sensor calibration initialized successfully');
 	} catch (error) {
@@ -791,7 +1063,7 @@ setInterval(() => {
 	// }
 
 	if (demoMode == 0) {
-		read();
+		if (isConnectedPLC) read();
 	} else {
 		read_demo();
 		socket.emit('sensorData', {
@@ -799,6 +1071,7 @@ setInterval(() => {
 			o2: sensorData['o2'],
 			temperature: sensorData['temperature'],
 			humidity: sensorData['humidity'],
+			co2: sensorData['co2'],
 			sessionStatus: sessionStatus,
 			doorStatus: sessionStatus.doorStatus,
 		});
@@ -825,7 +1098,7 @@ function read() {
 		'zaman',
 		sessionStatus.zaman,
 		'grafikdurum',
-		sessionStatus.grafikdurum
+		sessionStatus.grafikdurum,
 	);
 
 	console.log(
@@ -836,7 +1109,7 @@ function read() {
 		'Temperature : ',
 		sensorData['temperature'],
 		'Humidity : ',
-		sensorData['humidity']
+		sensorData['humidity'],
 	);
 
 	// Ensure profile is always an array before any indexed access
@@ -926,7 +1199,7 @@ function read() {
 			alarmSet(
 				'treatmenFinished',
 				'Treatment Finished. Take the mask off. Decompression Starting.',
-				0
+				0,
 			);
 
 			console.log(
@@ -935,7 +1208,7 @@ function read() {
 				'oksijenBaslangicZamani',
 				sessionStatus.oksijenBaslangicZamani,
 				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
+				sessionStatus.oksijenBitisZamani,
 			);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
@@ -958,7 +1231,7 @@ function read() {
 				'Step changed from',
 				sessionStatus.adim,
 				'to',
-				sessionStatus.profile[sessionStatus.zaman][2]
+				sessionStatus.profile[sessionStatus.zaman][2],
 			);
 			//alarmSet('stepChange', 'Step Changed', 0);
 		}
@@ -1050,7 +1323,7 @@ function read() {
 			'pressRateFswPerMin :',
 			sessionStatus.pressRateFswPerMin,
 			'pressRateBarPerMin :',
-			sessionStatus.pressRateBarPerMin
+			sessionStatus.pressRateBarPerMin,
 		);
 
 		console.log('difference :', difference);
@@ -1058,7 +1331,7 @@ function read() {
 		console.log(
 			'pressure :',
 			sessionStatus.pressure,
-			sessionStatus.fsw.toFixed(2)
+			sessionStatus.fsw.toFixed(2),
 		);
 
 		// Ä°lk basÄ±nÃ§ kaydÄ±
@@ -1091,7 +1364,7 @@ function read() {
 				alarmSet(
 					'deviation',
 					'Session paused ! Deviation in the session graph ! Check the compressor and air supply system.',
-					0
+					0,
 				);
 
 				sessionStatus.status = 2;
@@ -1108,7 +1381,7 @@ function read() {
 				console.log(
 					'sessionPause',
 					sessionStatus.pauseTime,
-					sessionStatus.pauseDepth
+					sessionStatus.pauseDepth,
 				);
 
 				sessionStatus.deviationAlarm = true;
@@ -1226,7 +1499,7 @@ function read() {
 				sessionStatus.hedeflenen.length,
 				sessionStatus.cikis,
 				sessionStatus.eop,
-				sessionStatus.main_fsw
+				sessionStatus.main_fsw,
 			);
 			// Seans sonu kontrolÃ¼
 			if (
@@ -1355,7 +1628,7 @@ function read_demo() {
 		'zaman',
 		sessionStatus.zaman,
 		'grafikdurum',
-		sessionStatus.grafikdurum
+		sessionStatus.grafikdurum,
 	);
 
 	// Update time display (simulated)
@@ -1397,18 +1670,25 @@ function read_demo() {
 		// Simulate other sensor data
 		sensorData['o2'] = filters.o2.update(21.1);
 		sensorData['temperature'] = filters.temperature.update(
-			22.5 + (Math.random() * 2 - 1)
+			22.5 + (Math.random() * 2 - 1),
 		); // 21.5-23.5Â°C
 		sensorData['humidity'] = filters.humidity.update(
-			45 + (Math.random() * 10 - 5)
+			45 + (Math.random() * 10 - 5),
 		); // 40-50%
 		sensorData['pressure'] = filters.pressure.update(0);
+
+		// CO2 demo verisi üret (seans aktif olduğunda 550-750 ppm arası)
+		const co2Raw = generateCO2DemoData(
+			sessionStatus.zaman,
+			sessionStatus.status > 0,
+		);
+		sensorData['co2'] = filters.co2.update(co2Raw);
 
 		// Update session status with simulated data
 		sessionStatus.pressure = sessionStatus.hedef / 33.4;
 		sessionStatus.main_fsw = sessionStatus.hedef / 33.4;
 		sensorData['pressure'] = filters.pressure.update(
-			sessionStatus.hedef / 33.4
+			sessionStatus.hedef / 33.4,
 		);
 		sessionStatus.o2 = sensorData['o2'];
 
@@ -1469,7 +1749,7 @@ function read_demo() {
 			alarmSet(
 				'treatmenFinished',
 				'Treatment Finished. Take the mask off. Decompression Starting.',
-				0
+				0,
 			);
 
 			console.log(
@@ -1478,7 +1758,7 @@ function read_demo() {
 				'oksijenBaslangicZamani',
 				sessionStatus.oksijenBaslangicZamani,
 				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
+				sessionStatus.oksijenBitisZamani,
 			);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
@@ -1501,7 +1781,7 @@ function read_demo() {
 				'Step changed from',
 				sessionStatus.adim,
 				'to',
-				sessionStatus.profile[sessionStatus.zaman][2]
+				sessionStatus.profile[sessionStatus.zaman][2],
 			);
 			//alarmSet('stepChange', 'Step Changed', 0);
 		}
@@ -1543,7 +1823,7 @@ function read_demo() {
 		console.log(
 			'pressure (demo):',
 			sessionStatus.pressure,
-			sessionStatus.fsw.toFixed(2)
+			sessionStatus.fsw.toFixed(2),
 		);
 
 		// Ä°lk basÄ±nÃ§ kaydÄ±
@@ -1594,7 +1874,7 @@ function read_demo() {
 						if (difference > 0.1) {
 							console.log(
 								'Demo: Would open comp valve to',
-								sessionStatus.pcontrol
+								sessionStatus.pcontrol,
 							);
 							// compValve(sessionStatus.pcontrol); - disabled for demo
 						} else if (avgDifference < -0.6) {
@@ -1609,12 +1889,12 @@ function read_demo() {
 						if (difference > 0.1) {
 							console.log(
 								'Demo: Would open comp valve to',
-								sessionStatus.pcontrol
+								sessionStatus.pcontrol,
 							);
 						} else if (difference < -1) {
 							console.log(
 								'Demo: Would open decomp valve to',
-								Math.abs(control)
+								Math.abs(control),
 							);
 						} else {
 							console.log('Demo: Would close both valves');
@@ -1653,7 +1933,7 @@ function read_demo() {
 					'Demo: Ventilation mode - comp valve:',
 					sessionStatus.pcontrol,
 					'decomp valve:',
-					sessionStatus.vanacikis
+					sessionStatus.vanacikis,
 				);
 			}
 
@@ -1674,7 +1954,7 @@ function read_demo() {
 				sessionStatus.profile.length,
 				sessionStatus.cikis,
 				sessionStatus.eop,
-				sessionStatus.main_fsw
+				sessionStatus.main_fsw,
 			);
 
 			// Seans sonu kontrolÃ¼
@@ -1766,6 +2046,7 @@ function read_demo() {
 		var s_display = zeroPad(sessionStatus.zaman % 60, 2);
 
 		console.log('Demo time:', m_display + ':' + s_display);
+		console.log('CO2 (demo):', sensorData['co2'], 'ppm');
 		console.log('');
 
 		// YÃ¼ksek oksijen kontrolÃ¼ (simulated)
@@ -1892,11 +2173,11 @@ function compValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(6500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(9000, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
-		JSON.stringify({ register: 'R01000', value: send })
+		JSON.stringify({ register: 'R01000', value: send }),
 	);
 }
 
@@ -1923,11 +2204,11 @@ function decompValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(6500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(3500, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
-		JSON.stringify({ register: 'R01001', value: send })
+		JSON.stringify({ register: 'R01001', value: send }),
 	);
 }
 
@@ -1936,7 +2217,7 @@ function sessionResume(
 	pauseEndTime,
 	currentPressure,
 	initialPressure,
-	stepDuration
+	stepDuration,
 ) {
 	// Calculate elapsed pause time
 	const pauseDuration = pauseEndTime - pauseStartTime;
@@ -2071,11 +2352,11 @@ function sessionFinishToZero(startTimeOverride, currentPressureOverride) {
 	let currentPressure = Number.isFinite(currentPressureOverride)
 		? currentPressureOverride
 		: typeof sensorData !== 'undefined' &&
-		  Number.isFinite(sensorData['pressure'])
-		? sensorData['pressure']
-		: sessionStatus.profile[startTime]
-		? sessionStatus.profile[startTime][1]
-		: 0;
+			  Number.isFinite(sensorData['pressure'])
+			? sensorData['pressure']
+			: sessionStatus.profile[startTime]
+				? sessionStatus.profile[startTime][1]
+				: 0;
 
 	if (!Array.isArray(sessionStatus.profile)) sessionStatus.profile = [];
 	// originalLength removed; we will truncate instead of filling with zeros
@@ -2142,7 +2423,7 @@ function sessionFinishToZero(startTimeOverride, currentPressureOverride) {
 		startTime,
 		'with',
 		timeToZero,
-		'seconds.'
+		'seconds.',
 	);
 }
 
@@ -2175,7 +2456,7 @@ function sessionStop() {
 	alarmSet(
 		'sessionStop',
 		'Session stop initiated. Decompressing to surface.',
-		0
+		0,
 	);
 
 	// Seans kaydını tamamla
@@ -2245,7 +2526,7 @@ function updateTotalSessionDuration(newTotalDuration) {
 	const newTreatmentDuration = newTotalDuration - (dalisSuresi + cikisSuresi);
 	if (newTreatmentDuration <= 0) {
 		console.log(
-			'Yeni toplam sÃ¼re, dalÄ±Å ve Ã§Ä±kÄ±Å sÃ¼relerinin toplamÄ±ndan bÃ¼yÃ¼k olmalÄ±.'
+			'Yeni toplam sÃ¼re, dalÄ±Å ve Ã§Ä±kÄ±Å sÃ¼relerinin toplamÄ±ndan bÃ¼yÃ¼k olmalÄ±.',
 		);
 		return false;
 	}
@@ -2308,7 +2589,7 @@ function updateTotalSessionDuration(newTotalDuration) {
 		return false;
 	}
 	console.log(
-		`Toplam sÃ¼re ${newTotalDuration} dakika olarak gÃ¼ncellendi. Tedavi sÃ¼resi: ${newTreatmentDuration} dakika.`
+		`Toplam sÃ¼re ${newTotalDuration} dakika olarak gÃ¼ncellendi. Tedavi sÃ¼resi: ${newTreatmentDuration} dakika.`,
 	);
 	return true;
 }
@@ -2335,7 +2616,7 @@ function updateDiveAndExitDurations(newDiveDuration, newExitDuration) {
 		totalDuration - (newDiveDuration + newExitDuration);
 	if (newTreatmentDuration <= 0) {
 		console.log(
-			'Yeni dalÄ±Å ve Ã§Ä±kÄ±Å sÃ¼relerinin toplamÄ±, toplam sÃ¼reden kÃ¼Ã§Ã¼k olmalÄ±.'
+			'Yeni dalÄ±Å ve Ã§Ä±kÄ±Å sÃ¼relerinin toplamÄ±, toplam sÃ¼reden kÃ¼Ã§Ã¼k olmalÄ±.',
 		);
 		return false;
 	}
@@ -2400,38 +2681,60 @@ function updateDiveAndExitDurations(newDiveDuration, newExitDuration) {
 	sessionStatus.dalisSuresi = newDiveDuration;
 	sessionStatus.cikisSuresi = newExitDuration;
 	console.log(
-		`DalÄ±Å sÃ¼resi ${newDiveDuration} dakika, Ã§Ä±kÄ±Å sÃ¼resi ${newExitDuration} dakika olarak gÃ¼ncellendi. Tedavi sÃ¼resi: ${newTreatmentDuration} dakika.`
+		`DalÄ±Å sÃ¼resi ${newDiveDuration} dakika, Ã§Ä±kÄ±Å sÃ¼resi ${newExitDuration} dakika olarak gÃ¼ncellendi. Tedavi sÃ¼resi: ${newTreatmentDuration} dakika.`,
 	);
 	return true;
 }
 
+// Varsayılan seans parametreleri - config yüklendikten sonra güncellenecek
+// Bu değerler geçici olarak kullanılır, config yüklendiğinde applyConfigToApp() ile güncellenir
 sessionStatus.dalisSuresi = 10;
 sessionStatus.cikisSuresi = 10;
 sessionStatus.toplamSure = 60;
 sessionStatus.setDerinlik = 1;
 
-console.log(sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air');
+// Varsayılan profili oluştur - config yüklendikten sonra yeniden oluşturulacak
+function initializeDefaultProfile() {
+	const dalisSuresi =
+		global.appConfig?.defaultDalisSuresi || sessionStatus.dalisSuresi;
+	const cikisSuresi =
+		global.appConfig?.defaultCikisSuresi || sessionStatus.cikisSuresi;
+	const toplamSure =
+		global.appConfig?.defaultToplamSure || sessionStatus.toplamSure;
+	const setDerinlik =
+		global.appConfig?.defaultSetDerinlik || sessionStatus.setDerinlik;
 
-// Calculate treatment duration for default profile
-const defaultTreatmentDuration =
-	sessionStatus.toplamSure -
-	(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
+	sessionStatus.dalisSuresi = dalisSuresi;
+	sessionStatus.cikisSuresi = cikisSuresi;
+	sessionStatus.toplamSure = toplamSure;
+	sessionStatus.setDerinlik = setDerinlik;
 
-// Create alternating oxygen/air treatment segments for default profile
-const defaultTreatmentSegments = createAlternatingTreatmentProfile(
-	defaultTreatmentDuration,
-	sessionStatus.setDerinlik
-);
+	console.log(sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air');
 
-// Build complete default profile with descent, alternating treatment, and ascent
-const defaultSetProfile = [
-	[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
-	...defaultTreatmentSegments, // Alternating oxygen/air treatment phases
-	[sessionStatus.cikisSuresi, 0, 'air'], // Ascent phase
-];
+	// Calculate treatment duration for default profile
+	const defaultTreatmentDuration = toplamSure - (dalisSuresi + cikisSuresi);
 
-const quickProfile = ProfileUtils.createQuickProfile(defaultSetProfile);
-sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
+	// Create alternating oxygen/air treatment segments for default profile
+	const defaultTreatmentSegments = createAlternatingTreatmentProfile(
+		defaultTreatmentDuration,
+		setDerinlik,
+	);
+
+	// Build complete default profile with descent, alternating treatment, and ascent
+	const defaultSetProfile = [
+		[dalisSuresi, setDerinlik, 'air'], // Descent phase
+		...defaultTreatmentSegments, // Alternating oxygen/air treatment phases
+		[cikisSuresi, 0, 'air'], // Ascent phase
+	];
+
+	const quickProfile = ProfileUtils.createQuickProfile(defaultSetProfile);
+	sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
+
+	console.log('Default profile initialized from config');
+}
+
+// İlk başlatmada geçici profil oluştur
+initializeDefaultProfile();
 
 function sensorCalibration() {}
 
@@ -2443,8 +2746,9 @@ function sensorCalibration() {}
  */
 function createAlternatingTreatmentProfile(treatmentDuration, depth) {
 	const segments = [];
-	const oxygenDuration = 15; // 15 minutes oxygen
-	const airBreakDuration = 5; // 5 minutes air break
+	// Oksijen ve hava molası sürelerini config'den al
+	const oxygenDuration = global.appConfig?.oxygenDuration || 15; // 15 minutes oxygen
+	const airBreakDuration = global.appConfig?.airBreakDuration || 5; // 5 minutes air break
 	const cycleDuration = oxygenDuration + airBreakDuration; // 20 minutes total per cycle
 
 	let remainingTime = treatmentDuration;
@@ -2483,12 +2787,12 @@ function createChart() {
 		(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
 	const safeTreatmentDuration = Math.max(
 		0,
-		Number.isFinite(treatmentDuration) ? treatmentDuration : 0
+		Number.isFinite(treatmentDuration) ? treatmentDuration : 0,
 	);
 
 	let treatmentSegments = createAlternatingTreatmentProfile(
 		safeTreatmentDuration,
-		sessionStatus.setDerinlik
+		sessionStatus.setDerinlik,
 	);
 
 	// Build complete profile with descent, alternating treatment, and ascent
@@ -2500,7 +2804,7 @@ function createChart() {
 
 	// Filter out any invalid or non-positive duration segments to satisfy validator
 	const setProfile = setProfileRaw.filter(
-		(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0
+		(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0,
 	);
 
 	const quickProfile = ProfileUtils.createQuickProfile(setProfile);

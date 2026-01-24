@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Configuration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .config-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .config-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .section-icon.blue { background: linear-gradient(135deg, #00d4ff, #0099cc); }
+        .section-icon.green { background: linear-gradient(135deg, #00ff88, #00cc6a); }
+        .section-icon.orange { background: linear-gradient(135deg, #ff9500, #ff6b00); }
+        .section-icon.purple { background: linear-gradient(135deg, #a855f7, #7c3aed); }
+        .section-icon.red { background: linear-gradient(135deg, #ff4757, #ff3838); }
+        .section-icon.cyan { background: linear-gradient(135deg, #00cec9, #0984e3); }
+
+        .section-header h2 {
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #aaa;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #1a1a2e;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 500;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #1a1a2e;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+        }
+
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .unit {
+            color: #666;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+
+        /* Sensor Table Styles */
+        .sensor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .sensor-table th,
+        .sensor-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sensor-table th {
+            font-size: 0.75rem;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .sensor-table td input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        .sensor-table td input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .sensor-name {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .sensor-section {
+            grid-column: 1 / -1;
+        }
+
+        .section-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .tab-btn:hover:not(.active) {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row, .form-row-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .sensor-table {
+                font-size: 0.8rem;
+            }
+
+            .sensor-table th,
+            .sensor-table td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ System Configuration</h1>
+            <p>Hyperbaric Chamber Control System Settings</p>
+        </header>
+
+        <div class="config-grid">
+            <!-- Project Info -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon blue">📋</div>
+                    <h2>Project Information</h2>
+                </div>
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" id="projectName" placeholder="Project Name">
+                </div>
+                <div class="form-group">
+                    <label>Chamber Type</label>
+                    <input type="text" id="chamberType" placeholder="Chamber Type">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Pressure Limit <span class="unit">(bar)</span></label>
+                        <input type="number" id="pressureLimit" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Session Time Limit <span class="unit">(min)</span></label>
+                        <input type="number" id="sessionTimeLimit">
+                    </div>
+                </div>
+            </div>
+
+            <!-- O2 Calibration -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon green">🫁</div>
+                    <h2>O2 Sensor Calibration</h2>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>0% Raw Value</label>
+                        <input type="number" id="o2Point0Raw">
+                    </div>
+                    <div class="form-group">
+                        <label>21% Raw Value</label>
+                        <input type="number" id="o2Point21Raw">
+                    </div>
+                    <div class="form-group">
+                        <label>100% Raw Value</label>
+                        <input type="number" id="o2Point100Raw">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>O2 Alarm Level <span class="unit">(%)</span></label>
+                        <input type="number" id="o2AlarmValuePercentage" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>O2 Alarm</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="o2AlarmOn">
+                            <label for="o2AlarmOn">Enable O2 Alarm</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Settings -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon purple">📊</div>
+                    <h2>Filter Alpha Values</h2>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Pressure Filter Alpha</label>
+                        <input type="number" id="filterAlphaPressure" step="0.01" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>O2 Filter Alpha</label>
+                        <input type="number" id="filterAlphaO2" step="0.01" min="0" max="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Temperature Filter Alpha</label>
+                        <input type="number" id="filterAlphaTemperature" step="0.01" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Humidity Filter Alpha</label>
+                        <input type="number" id="filterAlphaHumidity" step="0.01" min="0" max="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>CO2 Filter Alpha</label>
+                    <input type="number" id="filterAlphaCo2" step="0.01" min="0" max="1">
+                </div>
+            </div>
+
+            <!-- Compressor Control -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon orange">🔧</div>
+                    <h2>Compressor Control</h2>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Comp Offset</label>
+                        <input type="number" id="compOffset" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Comp Gain</label>
+                        <input type="number" id="compGain" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Comp Depth</label>
+                        <input type="number" id="compDepth" step="0.1">
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Decomp Offset</label>
+                        <input type="number" id="decompOffset" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Decomp Gain</label>
+                        <input type="number" id="decompGain" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Decomp Depth</label>
+                        <input type="number" id="decompDepth" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Valve <span class="unit">(%)</span></label>
+                    <input type="number" id="minimumValve" min="0" max="100">
+                </div>
+            </div>
+
+            <!-- Default Session Parameters -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon cyan">⏱️</div>
+                    <h2>Default Session Parameters</h2>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Dive Duration <span class="unit">(min)</span></label>
+                        <input type="number" id="defaultDalisSuresi">
+                    </div>
+                    <div class="form-group">
+                        <label>Exit Duration <span class="unit">(min)</span></label>
+                        <input type="number" id="defaultCikisSuresi">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Total Duration <span class="unit">(min)</span></label>
+                        <input type="number" id="defaultToplamSure">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Depth <span class="unit">(bar)</span></label>
+                        <input type="number" id="defaultSetDerinlik" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Default Speed</label>
+                    <select id="defaultSpeed">
+                        <option value="1">Slow (1)</option>
+                        <option value="2">Medium (2)</option>
+                        <option value="3">Fast (3)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Alarm & Oxygen Settings -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon red">🚨</div>
+                    <h2>Alarm & Oxygen Settings</h2>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Humidity Alarm Level <span class="unit">(%)</span></label>
+                        <input type="number" id="humidityAlarmLevel" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>High O2 Level <span class="unit">(%)</span></label>
+                        <input type="number" id="highO2Level" step="0.1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Oxygen Duration <span class="unit">(min)</span></label>
+                        <input type="number" id="oxygenDuration">
+                    </div>
+                    <div class="form-group">
+                        <label>Air Break Duration <span class="unit">(min)</span></label>
+                        <input type="number" id="airBreakDuration">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLC & System Settings -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon blue">🖥️</div>
+                    <h2>PLC & System Settings</h2>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>PLC IP Address</label>
+                        <input type="text" id="plcIpAddress" placeholder="192.168.77.100">
+                    </div>
+                    <div class="form-group">
+                        <label>PLC Port</label>
+                        <input type="number" id="plcPort">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Demo Mode</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="demoMode">
+                        <label for="demoMode">Enable Demo Mode (No PLC Connection)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensor Calibration Section -->
+            <div class="config-section sensor-section">
+                <div class="section-header">
+                    <div class="section-icon green">📡</div>
+                    <h2>Sensor Calibration Data</h2>
+                </div>
+                
+                <div id="sensorsContainer">
+                    <p style="color: #888; text-align: center;">Loading sensors...</p>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="loadSensors()">
+                        🔄 Reload Sensors
+                    </button>
+                    <button class="btn btn-success" onclick="saveSensors()">
+                        💾 Save Sensor Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="loadConfig()">
+                🔄 Reload Config
+            </button>
+            <button class="btn btn-success" onclick="saveConfig()">
+                💾 Save Changes
+            </button>
+            <button class="btn btn-danger" onclick="resetConfig()">
+                🔄 Reset to Defaults
+            </button>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Config alanları listesi
+        const configFields = [
+            'projectName', 'chamberType', 'pressureLimit', 'sessionTimeLimit',
+            'o2Point0Raw', 'o2Point21Raw', 'o2Point100Raw', 'o2AlarmValuePercentage', 'o2AlarmOn',
+            'filterAlphaPressure', 'filterAlphaO2', 'filterAlphaTemperature', 'filterAlphaHumidity', 'filterAlphaCo2',
+            'compOffset', 'compGain', 'compDepth', 'decompOffset', 'decompGain', 'decompDepth', 'minimumValve',
+            'defaultDalisSuresi', 'defaultCikisSuresi', 'defaultToplamSure', 'defaultSetDerinlik', 'defaultSpeed',
+            'humidityAlarmLevel', 'highO2Level', 'oxygenDuration', 'airBreakDuration',
+            'plcIpAddress', 'plcPort', 'demoMode'
+        ];
+
+        // Checkbox alanları
+        const checkboxFields = ['o2AlarmOn', 'demoMode'];
+
+        // Sayfa yüklendiğinde config ve sensörler yüklenecek (altta tanımlı)
+
+        async function loadConfig() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}/getConfig`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const config = result.data;
+                    
+                    configFields.forEach(field => {
+                        const element = document.getElementById(field);
+                        if (element) {
+                            if (checkboxFields.includes(field)) {
+                                element.checked = config[field] || false;
+                            } else {
+                                element.value = config[field] !== null && config[field] !== undefined 
+                                    ? config[field] 
+                                    : '';
+                            }
+                        }
+                    });
+                    
+                    showToast('Config loaded successfully', 'success');
+                } else {
+                    showToast('Failed to load config', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+                showToast('Error loading config: ' + error.message, 'error');
+            }
+            showLoading(false);
+        }
+
+        async function saveConfig() {
+            showLoading(true);
+            try {
+                const configData = {};
+                
+                configFields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element) {
+                        if (checkboxFields.includes(field)) {
+                            configData[field] = element.checked;
+                        } else if (element.type === 'number') {
+                            configData[field] = element.value !== '' ? parseFloat(element.value) : null;
+                        } else {
+                            configData[field] = element.value;
+                        }
+                    }
+                });
+
+                const response = await fetch(`${API_BASE}/updateConfig`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(configData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Config saved successfully! Restart may be required for some changes.', 'success');
+                } else {
+                    showToast('Failed to save config', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving config:', error);
+                showToast('Error saving config: ' + error.message, 'error');
+            }
+            showLoading(false);
+        }
+
+        async function resetConfig() {
+            if (!confirm('Are you sure you want to reset all settings to default values?')) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}/resetConfig`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Config reset to defaults!', 'success');
+                    loadConfig(); // Reload the form
+                } else {
+                    showToast('Failed to reset config', 'error');
+                }
+            } catch (error) {
+                console.error('Error resetting config:', error);
+                showToast('Error resetting config: ' + error.message, 'error');
+            }
+            showLoading(false);
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==========================================
+        // SENSOR CALIBRATION FUNCTIONS
+        // ==========================================
+        
+        let sensorsData = [];
+
+        async function loadSensors() {
+            const container = document.getElementById('sensorsContainer');
+            container.innerHTML = '<p style="color: #888; text-align: center;">Loading sensors...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/sensors/list`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    sensorsData = result.data;
+                    renderSensorsTable(sensorsData);
+                } else {
+                    container.innerHTML = '<p style="color: #ff4757; text-align: center;">Failed to load sensors</p>';
+                }
+            } catch (error) {
+                console.error('Error loading sensors:', error);
+                container.innerHTML = `<p style="color: #ff4757; text-align: center;">Error: ${error.message}</p>`;
+            }
+        }
+
+        function renderSensorsTable(sensors) {
+            const container = document.getElementById('sensorsContainer');
+            
+            if (!sensors || sensors.length === 0) {
+                container.innerHTML = '<p style="color: #888; text-align: center;">No sensors found</p>';
+                return;
+            }
+
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table class="sensor-table">
+                        <thead>
+                            <tr>
+                                <th>Sensor Name</th>
+                                <th>Display Text</th>
+                                <th>Symbol</th>
+                                <th>Lower Limit</th>
+                                <th>Upper Limit</th>
+                                <th>Analog Lower</th>
+                                <th>Analog Upper</th>
+                                <th>Decimal</th>
+                                <th>Offset</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            sensors.forEach((sensor, index) => {
+                html += `
+                    <tr data-sensor-id="${sensor.sensorID}">
+                        <td>
+                            <span class="sensor-name">${sensor.sensorName || ''}</span>
+                            <input type="hidden" class="sensor-field" data-field="sensorName" value="${sensor.sensorName || ''}">
+                        </td>
+                        <td>
+                            <input type="text" class="sensor-field" data-field="sensorText" value="${sensor.sensorText || ''}">
+                        </td>
+                        <td>
+                            <input type="text" class="sensor-field" data-field="sensorSymbol" value="${sensor.sensorSymbol || ''}" style="width: 60px;">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorLowerLimit" value="${sensor.sensorLowerLimit || 0}" step="0.01">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorUpperLimit" value="${sensor.sensorUpperLimit || 100}" step="0.01">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorAnalogLower" value="${sensor.sensorAnalogLower || 0}">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorAnalogUpper" value="${sensor.sensorAnalogUpper || 16383}">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorDecimal" value="${sensor.sensorDecimal || 2}" min="0" max="6" style="width: 60px;">
+                        </td>
+                        <td>
+                            <input type="number" class="sensor-field" data-field="sensorOffset" value="${sensor.sensorOffset || 0}" style="width: 70px;">
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        async function saveSensors() {
+            showLoading(true);
+            
+            try {
+                const rows = document.querySelectorAll('.sensor-table tbody tr');
+                const sensorsToUpdate = [];
+
+                rows.forEach(row => {
+                    const sensorID = row.dataset.sensorId;
+                    const fields = row.querySelectorAll('.sensor-field');
+                    const sensorData = { sensorID: parseInt(sensorID) };
+
+                    fields.forEach(field => {
+                        const fieldName = field.dataset.field;
+                        let value = field.value;
+
+                        // Convert number fields
+                        if (field.type === 'number') {
+                            value = value !== '' ? parseFloat(value) : null;
+                        }
+
+                        sensorData[fieldName] = value;
+                    });
+
+                    sensorsToUpdate.push(sensorData);
+                });
+
+                const response = await fetch(`${API_BASE}/sensors/bulk-update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sensors: sensorsToUpdate })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Sensor calibration data saved successfully!', 'success');
+                } else {
+                    showToast('Failed to save sensors: ' + (result.errorMessage || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error saving sensors:', error);
+                showToast('Error saving sensors: ' + error.message, 'error');
+            }
+
+            showLoading(false);
+        }
+
+        // Load sensors when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadSensors();
+        });
+    </script>
+</body>
+</html>
