@@ -14,5 +14,6 @@ db.sequelize = sequelize;
 db.sensors = require('./sensor.model.js')(sequelize, Sequelize);
 db.config = require('./config.model.js')(sequelize, Sequelize);
 db.patients = require('./patient.model.js')(sequelize, Sequelize);
+db.tuning = require('./tuning.model.js')(sequelize, Sequelize);
 
 module.exports = db;

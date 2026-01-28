@@ -11,6 +11,11 @@ const db = require('./src/models');
 const { ProfileUtils, ProfileManager } = require('./profile_manager');
 const dayjs = require('dayjs');
 const SensorCalibration = require('./o2_calibration');
+const { tuningManager } = require('./tuning_manager');
+const { getCloudReporter } = require('./src/cloud/reporter');
+
+// Cloud Reporter instance (initialized after config load)
+let cloudReporter = null;
 
 let server = http.Server(app);
 const bodyParser = require('body-parser');
@@ -65,6 +70,8 @@ const defaultConfigValues = {
 
 	// Vana ayarları
 	minimumValve: 5,
+	compressionValveAnalog: 9000,
+	decompressionValveAnalog: 3500,
 
 	// Varsayılan seans parametreleri
 	defaultDalisSuresi: 10,
@@ -223,6 +230,11 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 // Config sayfası endpoint'i
 app.get('/config-page', (req, res) => {
 	res.sendFile(path.join(__dirname, 'public', 'config.html'));
+});
+
+// Tuning sayfası endpoint'i
+app.get('/tuning-page', (req, res) => {
+	res.sendFile(path.join(__dirname, 'public', 'tuning.html'));
 });
 
 app.use(allRoutes);
@@ -486,6 +498,10 @@ async function init() {
 	try {
 		await db.sequelize.sync({ alter: true });
 		console.log('Database synchronized successfully');
+
+		// Tuning manager'a veritabani referansini ver
+		tuningManager.setDatabase(db);
+		console.log('Tuning manager initialized');
 	} catch (err) {
 		console.error('Database sync error:', err);
 	}
@@ -511,9 +527,40 @@ async function init() {
 	await loadSensorCalibrationData();
 	initializeO2Sensor();
 
+	// Initialize Cloud Reporter
+	cloudReporter = getCloudReporter();
+
 	setInterval(() => {
 		liveBit();
 	}, 3000);
+
+	// Cloud Heartbeat - send status every 30 seconds
+	setInterval(async () => {
+		if (cloudReporter && cloudReporter.isEnabled()) {
+			try {
+				await cloudReporter.sendHeartbeat({
+					pressure: sensorData['pressure'],
+					main_fsw: sessionStatus.main_fsw,
+					o2: sensorData['o2'],
+					temperature: sensorData['temperature'],
+					humidity: sensorData['humidity'],
+					co2: sensorData['co2'],
+					status: sessionStatus.status,
+					zaman: sessionStatus.zaman,
+					hedef: sessionStatus.hedef,
+					grafikdurum: sessionStatus.grafikdurum,
+					pcontrol: sessionStatus.pcontrol,
+					chamberStatus: sessionStatus.chamberStatus,
+					chamberStatusText: sessionStatus.chamberStatusText,
+					plcConnected: isConnectedPLC === 1,
+					pressRateFswPerMin: sessionStatus.pressRateFswPerMin,
+					pressRateBarPerMin: sessionStatus.pressRateBarPerMin,
+				});
+			} catch (err) {
+				console.error('[CloudReporter] Heartbeat error:', err.message);
+			}
+		}
+	}, 30000);
 
 	try {
 		// PLC bağlantı adresini config'den al
@@ -587,7 +634,7 @@ async function init() {
 				const o2RawValue = dataObject.data[2] || 8000; // EÄer veri yoksa varsayÄ±lan deÄer
 				sensorData.o2RawValue = o2RawValue; // Ham deÄeri sakla
 				let o2Value = o2Sensor ? o2Sensor.calibrate(o2RawValue) : 0;
-				sensorData['o2'] = 21.1;
+				sensorData['o2'] = filters.o2.update(o2Value);
 
 				sensorData['temperature'] = filters.temperature.update(
 					linearConversion(
@@ -729,6 +776,26 @@ async function init() {
 				});
 				sessionStartBit(1);
 				sessionStatus.sessionStartTime = dayjs();
+
+				// Report session start to cloud
+				if (cloudReporter && cloudReporter.isEnabled()) {
+					cloudReporter
+						.reportSessionStart({
+							sessionCounter: global.appConfig?.sessionCounter,
+							setDerinlik: sessionStatus.setDerinlik,
+							dalisSuresi: sessionStatus.dalisSuresi,
+							cikisSuresi: sessionStatus.cikisSuresi,
+							toplamSure: sessionStatus.toplamSure,
+							speed: sessionStatus.speed,
+							profile: sessionStatus.profile,
+						})
+						.catch((err) =>
+							console.error(
+								'[CloudReporter] Session start error:',
+								err.message,
+							),
+						);
+				}
 			} else if (dt.type == 'sessionPause') {
 				sessionStatus.status = 2;
 				sessionStatus.otomanuel = 1;
@@ -896,6 +963,47 @@ async function init() {
 				} else {
 					socket.emit('writeBit', { register: 'M0102', value: 0 });
 				}
+			} else if (dt.type == 'tuningStart') {
+				// Tuning veri toplamaya basla
+				console.log('tuningStart');
+				tuningManager
+					.startCollection({
+						setDerinlik: sessionStatus.setDerinlik,
+						toplamSure: sessionStatus.toplamSure,
+					})
+					.then((result) => {
+						socket.emit('chamberControl', {
+							type: 'tuningStarted',
+							data: result,
+						});
+					});
+			} else if (dt.type == 'tuningStop') {
+				// Tuning veri toplamayi durdur ve analiz et
+				console.log('tuningStop');
+				tuningManager.stopAndAnalyze().then((result) => {
+					socket.emit('chamberControl', {
+						type: 'tuningAnalysis',
+						data: result,
+					});
+				});
+			} else if (dt.type == 'tuningApply') {
+				// Onerilen parametreleri uygula
+				console.log('tuningApply', dt.data);
+				tuningManager
+					.applyRecommendations(dt.data.recommendations)
+					.then((result) => {
+						socket.emit('chamberControl', {
+							type: 'tuningApplied',
+							data: result,
+						});
+					});
+			} else if (dt.type == 'tuningStatus') {
+				// Tuning durumunu getir
+				const status = tuningManager.getStatus();
+				socket.emit('chamberControl', {
+					type: 'tuningStatus',
+					data: status,
+				});
 			}
 		});
 
@@ -1150,6 +1258,16 @@ function read() {
 			sessionStatus.hedef = 0;
 		}
 		console.log('hedef : ', sessionStatus.hedef.toFixed(2));
+
+		// Tuning veri toplama (aktifse)
+		tuningManager.collectDataPoint({
+			zaman: sessionStatus.zaman,
+			hedef: sessionStatus.hedef,
+			main_fsw: sessionStatus.main_fsw,
+			grafikdurum: sessionStatus.grafikdurum,
+			pcontrol: sessionStatus.pcontrol,
+			pressure: sensorData['pressure'],
+		});
 
 		// Grafik durumunu belirle (yÃ¼kseliÅ/iniÅ/dÃ¼z)
 		sessionStatus.lastdurum = sessionStatus.grafikdurum;
@@ -1519,6 +1637,21 @@ function read() {
 				compValve(0);
 				compValve(0);
 				sessionStartBit(0);
+
+				// Report session end to cloud
+				if (cloudReporter && cloudReporter.isEnabled()) {
+					cloudReporter
+						.reportSessionEnd({
+							zaman: sessionStatus.zaman,
+							status: 'completed',
+							completionReason: 'normal',
+							measurementData: sessionStatus.olcum?.slice(-100), // Last 100 measurements
+						})
+						.catch((err) =>
+							console.error('[CloudReporter] Session end error:', err.message),
+						);
+				}
+
 				//doorOpen();
 				sessionStatus.durum = 0;
 				sessionStatus.uyariyenile = 1;
@@ -1706,6 +1839,16 @@ function read_demo() {
 		}
 
 		console.log('hedef (demo): ', sessionStatus.hedef.toFixed(2));
+
+		// Tuning veri toplama (demo mode - aktifse)
+		tuningManager.collectDataPoint({
+			zaman: sessionStatus.zaman,
+			hedef: sessionStatus.hedef,
+			main_fsw: sessionStatus.main_fsw,
+			grafikdurum: sessionStatus.grafikdurum,
+			pcontrol: sessionStatus.pcontrol,
+			pressure: sensorData['pressure'],
+		});
 
 		// Grafik durumunu belirle (yÃ¼kseliÅ/iniÅ/dÃ¼z)
 		sessionStatus.lastdurum = sessionStatus.grafikdurum;
@@ -1972,6 +2115,21 @@ function read_demo() {
 				sessionStatus.eop = 1;
 				alarmSet('endOfSession', 'Session Finished.', 0);
 				sessionStartBit(0);
+
+				// Report session end to cloud
+				if (cloudReporter && cloudReporter.isEnabled()) {
+					cloudReporter
+						.reportSessionEnd({
+							zaman: sessionStatus.zaman,
+							status: 'completed',
+							completionReason: 'normal',
+							measurementData: sessionStatus.olcum?.slice(-100),
+						})
+						.catch((err) =>
+							console.error('[CloudReporter] Session end error:', err.message),
+						);
+				}
+
 				//doorOpen();
 				// Seans sonu varsayılanlarını doğrudan alanlara ata
 				// setDerinlik, speed, toplamSure, dalisSuresi, cikisSuresi korunur
@@ -2112,6 +2270,33 @@ function alarmSet(type, text, duration) {
 			...alarmStatus,
 		},
 	});
+
+	// Report alert to cloud (skip session info alerts)
+	if (
+		cloudReporter &&
+		cloudReporter.isEnabled() &&
+		type !== 'sessionStarting' &&
+		type !== 'endOfSession'
+	) {
+		cloudReporter
+			.reportAlert({
+				type: type,
+				text: text,
+				alertType: duration === 0 ? 'info' : 'alarm',
+				severity: duration === 0 ? 'info' : 'warning',
+				zaman: sessionStatus.zaman,
+				sensorValues: {
+					pressure: sensorData['pressure'],
+					o2: sensorData['o2'],
+					temperature: sensorData['temperature'],
+					humidity: sensorData['humidity'],
+					co2: sensorData['co2'],
+				},
+			})
+			.catch((err) =>
+				console.error('[CloudReporter] Alert error:', err.message),
+			);
+	}
 }
 
 function alarmClear() {
@@ -2165,6 +2350,7 @@ function zeroPad(num, numZeros) {
 }
 
 function compValve(angle) {
+	const compressionValve_analog = global.appConfig?.compressionValveAnalog || 9000;
 	if (angle > 90) angle = 90;
 	if (angle < 0) angle = 0;
 	angle = Math.round(angle);
@@ -2178,7 +2364,7 @@ function compValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(9000, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(compressionValve_analog, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
@@ -2195,6 +2381,7 @@ function drainOff() {
 }
 
 function decompValve(angle) {
+	const decompressionValve_analog = global.appConfig?.decompressionValveAnalog || 3500;
 	angle = Math.round(angle);
 	console.log('decompvalve ', angle);
 
@@ -2209,7 +2396,14 @@ function decompValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(3500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(
+		decompressionValve_analog,
+		16383,
+		0,
+		90,
+		angle,
+		0,
+	); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',

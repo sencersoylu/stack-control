@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PID Auto-Tuning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .section-icon.blue { background: linear-gradient(135deg, #00d4ff, #0099cc); }
+        .section-icon.green { background: linear-gradient(135deg, #00ff88, #00cc6a); }
+        .section-icon.orange { background: linear-gradient(135deg, #ff9500, #ff6b00); }
+        .section-icon.purple { background: linear-gradient(135deg, #a855f7, #7c3aed); }
+        .section-icon.red { background: linear-gradient(135deg, #ff4757, #ff3838); }
+        .section-icon.cyan { background: linear-gradient(135deg, #00cec9, #0984e3); }
+
+        .section-header h2 {
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+            color: #fff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #1a1a2e;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: #fff;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 149, 0, 0.4);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-row:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .status-value {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .status-value.active {
+            color: #00ff88;
+        }
+
+        .status-value.inactive {
+            color: #ff4757;
+        }
+
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .param-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .param-label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .param-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .param-value.changed {
+            color: #00ff88;
+        }
+
+        .param-arrow {
+            color: #ff9500;
+            margin: 0 5px;
+        }
+
+        .analysis-section {
+            margin-top: 20px;
+        }
+
+        .phase-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .phase-title {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85rem;
+        }
+
+        .metric-label {
+            color: #888;
+        }
+
+        .metric-value {
+            color: #fff;
+        }
+
+        .metric-value.good {
+            color: #00ff88;
+        }
+
+        .metric-value.warning {
+            color: #ff9500;
+        }
+
+        .metric-value.bad {
+            color: #ff4757;
+        }
+
+        .adjustment-list {
+            margin-top: 15px;
+        }
+
+        .adjustment-item {
+            background: rgba(255, 149, 0, 0.1);
+            border: 1px solid rgba(255, 149, 0, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .adjustment-param {
+            font-weight: 600;
+            color: #ff9500;
+            margin-bottom: 5px;
+        }
+
+        .adjustment-values {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .adjustment-reason {
+            font-size: 0.85rem;
+            color: #888;
+            font-style: italic;
+        }
+
+        .score-display {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .score-value {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .score-value.good {
+            color: #00ff88;
+        }
+
+        .score-value.medium {
+            color: #ff9500;
+        }
+
+        .score-value.bad {
+            color: #ff4757;
+        }
+
+        .score-label {
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+        }
+
+        .history-table th {
+            color: #888;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.approved {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .badge.pending {
+            background: rgba(255, 149, 0, 0.2);
+            color: #ff9500;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 500;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #1a1a2e;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+        }
+
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .live-indicator.active {
+            background: #00ff88;
+        }
+
+        .live-indicator.inactive {
+            background: #ff4757;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .params-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .control-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PID Auto-Tuning System</h1>
+            <p>Kural Bazli Parametre Optimizasyonu</p>
+        </header>
+
+        <div class="grid">
+            <!-- Control Panel -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon blue">&#9881;</div>
+                    <h2>Kontrol Paneli</h2>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-row">
+                        <span class="status-label">Durum</span>
+                        <span class="status-value" id="tuningStatus">
+                            <span class="live-indicator inactive"></span>
+                            Bekliyor
+                        </span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Toplanan Veri</span>
+                        <span class="status-value" id="dataPointCount">0 nokta</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Session ID</span>
+                        <span class="status-value" id="sessionId">-</span>
+                    </div>
+                </div>
+
+                <div class="control-buttons">
+                    <button class="btn btn-success" id="btnStart" onclick="startTuning()">
+                        &#9654; Veri Toplamaya Basla
+                    </button>
+                    <button class="btn btn-danger" id="btnStop" onclick="stopTuning()" disabled>
+                        &#9632; Durdur ve Analiz Et
+                    </button>
+                    <button class="btn btn-primary" id="btnRefresh" onclick="refreshStatus()">
+                        &#8635; Yenile
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Parameters -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon orange">&#9874;</div>
+                    <h2>Mevcut Parametreler</h2>
+                </div>
+
+                <h4 style="color: #888; margin-bottom: 10px; font-size: 0.85rem;">KOMPRESOR</h4>
+                <div class="params-grid" style="margin-bottom: 15px;">
+                    <div class="param-card">
+                        <div class="param-label">Offset</div>
+                        <div class="param-value" id="currentCompOffset">-</div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-label">Gain</div>
+                        <div class="param-value" id="currentCompGain">-</div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-label">Depth</div>
+                        <div class="param-value" id="currentCompDepth">-</div>
+                    </div>
+                </div>
+
+                <h4 style="color: #888; margin-bottom: 10px; font-size: 0.85rem;">DEKOMPRESYON</h4>
+                <div class="params-grid">
+                    <div class="param-card">
+                        <div class="param-label">Offset</div>
+                        <div class="param-value" id="currentDecompOffset">-</div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-label">Gain</div>
+                        <div class="param-value" id="currentDecompGain">-</div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-label">Depth</div>
+                        <div class="param-value" id="currentDecompDepth">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Results -->
+            <div class="section full-width" id="analysisSection" style="display: none;">
+                <div class="section-header">
+                    <div class="section-icon green">&#128200;</div>
+                    <h2>Analiz Sonuclari</h2>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px;">
+                    <!-- Score -->
+                    <div>
+                        <div class="score-display">
+                            <div class="score-value" id="performanceScore">-</div>
+                            <div class="score-label">Performans Skoru</div>
+                        </div>
+                        <button class="btn btn-success" id="btnApply" onclick="applyRecommendations()" style="width: 100%;" disabled>
+                            &#10004; Onerileri Uygula
+                        </button>
+                    </div>
+
+                    <!-- Phase Analysis -->
+                    <div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <div class="phase-card">
+                                <div class="phase-title">&#8593; Yukselis Fazi</div>
+                                <div id="risingPhase">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Veri Noktasi</span>
+                                        <span class="metric-value" id="risingDataPoints">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Overshoot</span>
+                                        <span class="metric-value" id="risingOvershoot">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Undershoot</span>
+                                        <span class="metric-value" id="risingUndershoot">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Oscillation</span>
+                                        <span class="metric-value" id="risingOscillation">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phase-card">
+                                <div class="phase-title">&#8596; Duz Faz (Tedavi)</div>
+                                <div id="flatPhase">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Veri Noktasi</span>
+                                        <span class="metric-value" id="flatDataPoints">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Steady Error</span>
+                                        <span class="metric-value" id="flatSteadyError">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Mean Error</span>
+                                        <span class="metric-value" id="flatMeanError">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Oscillation</span>
+                                        <span class="metric-value" id="flatOscillation">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phase-card">
+                                <div class="phase-title">&#8595; Inis Fazi</div>
+                                <div id="descendingPhase">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Veri Noktasi</span>
+                                        <span class="metric-value" id="descendingDataPoints">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Overshoot</span>
+                                        <span class="metric-value" id="descendingOvershoot">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Undershoot</span>
+                                        <span class="metric-value" id="descendingUndershoot">-</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Oscillation</span>
+                                        <span class="metric-value" id="descendingOscillation">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Adjustments -->
+                <div class="adjustment-list" id="adjustmentList">
+                    <h4 style="color: #888; margin-bottom: 15px;">Onerilen Degisiklikler</h4>
+                    <div id="adjustmentsContainer">
+                        <!-- Adjustments will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="status-card" style="margin-top: 15px;">
+                    <p id="analysisSummary" style="color: #aaa; font-size: 0.9rem;">-</p>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div class="section full-width">
+                <div class="section-header">
+                    <div class="section-icon purple">&#128466;</div>
+                    <h2>Gecmis Tuning Session'lari</h2>
+                </div>
+
+                <div id="historyContainer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128203;</div>
+                        <p>Henuz tuning session'i yok</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentRecommendations = null;
+        let statusInterval = null;
+
+        // Page load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStatus();
+            loadCurrentParams();
+            loadHistory();
+        });
+
+        // Start tuning
+        async function startTuning() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}/tuning/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Veri toplama basladi!', 'success');
+                    document.getElementById('btnStart').disabled = true;
+                    document.getElementById('btnStop').disabled = false;
+                    document.getElementById('analysisSection').style.display = 'none';
+
+                    // Start status polling
+                    statusInterval = setInterval(refreshStatus, 2000);
+                } else {
+                    showToast(result.message || 'Baslatma hatasi', 'error');
+                }
+            } catch (error) {
+                showToast('Hata: ' + error.message, 'error');
+            }
+            showLoading(false);
+        }
+
+        // Stop tuning and analyze
+        async function stopTuning() {
+            showLoading(true);
+            try {
+                // Stop polling
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+
+                const response = await fetch(`${API_BASE}/tuning/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Analiz tamamlandi!', 'success');
+                    document.getElementById('btnStart').disabled = false;
+                    document.getElementById('btnStop').disabled = true;
+
+                    // Store recommendations
+                    currentRecommendations = result.recommendations;
+
+                    // Display results
+                    displayAnalysisResults(result);
+                    loadHistory();
+                } else {
+                    showToast(result.message || 'Analiz hatasi', 'error');
+                }
+            } catch (error) {
+                showToast('Hata: ' + error.message, 'error');
+            }
+            showLoading(false);
+            refreshStatus();
+        }
+
+        // Apply recommendations
+        async function applyRecommendations() {
+            if (!currentRecommendations) {
+                showToast('Uygulanacak oneri yok', 'error');
+                return;
+            }
+
+            if (!confirm('Onerilen parametreleri uygulamak istediginize emin misiniz?')) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}/tuning/apply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recommendations: currentRecommendations })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Parametreler basariyla uygulandi!', 'success');
+                    loadCurrentParams();
+                    loadHistory();
+                    document.getElementById('btnApply').disabled = true;
+                } else {
+                    showToast(result.message || 'Uygulama hatasi', 'error');
+                }
+            } catch (error) {
+                showToast('Hata: ' + error.message, 'error');
+            }
+            showLoading(false);
+        }
+
+        // Refresh status
+        async function refreshStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/tuning/status`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+
+                    // Update status display
+                    const statusEl = document.getElementById('tuningStatus');
+                    const indicatorClass = data.isCollecting ? 'active' : 'inactive';
+                    const statusText = data.isCollecting ? 'Veri Toplaniyor' : 'Bekliyor';
+                    statusEl.innerHTML = `<span class="live-indicator ${indicatorClass}"></span>${statusText}`;
+
+                    document.getElementById('dataPointCount').textContent = `${data.dataPointCount} nokta`;
+                    document.getElementById('sessionId').textContent = data.sessionId || '-';
+
+                    // Update buttons
+                    document.getElementById('btnStart').disabled = data.isCollecting;
+                    document.getElementById('btnStop').disabled = !data.isCollecting;
+                }
+            } catch (error) {
+                console.error('Status refresh error:', error);
+            }
+        }
+
+        // Load current parameters
+        async function loadCurrentParams() {
+            try {
+                const response = await fetch(`${API_BASE}/tuning/current-params`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const params = result.data;
+                    document.getElementById('currentCompOffset').textContent = params.comp_offset;
+                    document.getElementById('currentCompGain').textContent = params.comp_gain;
+                    document.getElementById('currentCompDepth').textContent = params.comp_depth;
+                    document.getElementById('currentDecompOffset').textContent = params.decomp_offset;
+                    document.getElementById('currentDecompGain').textContent = params.decomp_gain;
+                    document.getElementById('currentDecompDepth').textContent = params.decomp_depth;
+                }
+            } catch (error) {
+                console.error('Params load error:', error);
+            }
+        }
+
+        // Load history
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/tuning/history?limit=10`);
+                const result = await response.json();
+
+                const container = document.getElementById('historyContainer');
+
+                if (result.success && result.data && result.data.length > 0) {
+                    let html = `
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tarih</th>
+                                    <th>Durum</th>
+                                    <th>Skor</th>
+                                    <th>Onay</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    result.data.forEach(session => {
+                        const date = new Date(session.sessionStartTime).toLocaleString('tr-TR');
+                        const score = session.suggestedParams?.performanceScore || '-';
+                        const badgeClass = session.approved ? 'approved' : 'pending';
+                        const badgeText = session.approved ? 'Onaylandi' : 'Bekliyor';
+
+                        html += `
+                            <tr>
+                                <td>#${session.id}</td>
+                                <td>${date}</td>
+                                <td>${session.status}</td>
+                                <td>${score}</td>
+                                <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128203;</div>
+                            <p>Henuz tuning session'i yok</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('History load error:', error);
+            }
+        }
+
+        // Display analysis results
+        function displayAnalysisResults(result) {
+            const section = document.getElementById('analysisSection');
+            section.style.display = 'block';
+
+            const analysis = result.analysis;
+            const recommendations = result.recommendations;
+
+            // Performance score
+            const scoreEl = document.getElementById('performanceScore');
+            const score = parseFloat(recommendations.performanceScore);
+            scoreEl.textContent = score.toFixed(0);
+            scoreEl.className = 'score-value ' + (score >= 80 ? 'good' : score >= 50 ? 'medium' : 'bad');
+
+            // Phase analysis - Rising
+            if (analysis.phases?.rising) {
+                const r = analysis.phases.rising;
+                document.getElementById('risingDataPoints').textContent = r.dataPoints || '-';
+                setMetricClass('risingOvershoot', r.overshootPercent, val => val > 8 ? 'bad' : val > 3 ? 'warning' : 'good');
+                document.getElementById('risingOvershoot').textContent = r.overshootPercent ? r.overshootPercent.toFixed(1) + '%' : '-';
+                setMetricClass('risingUndershoot', r.undershootPercent, val => val > 10 ? 'bad' : val > 5 ? 'warning' : 'good');
+                document.getElementById('risingUndershoot').textContent = r.undershootPercent ? r.undershootPercent.toFixed(1) + '%' : '-';
+                setMetricClass('risingOscillation', r.oscillationCount, val => val > 5 ? 'bad' : val > 3 ? 'warning' : 'good');
+                document.getElementById('risingOscillation').textContent = r.oscillationCount || '0';
+            }
+
+            // Phase analysis - Flat
+            if (analysis.phases?.flat) {
+                const f = analysis.phases.flat;
+                document.getElementById('flatDataPoints').textContent = f.dataPoints || '-';
+                setMetricClass('flatSteadyError', f.steadyStateError, val => val > 1 ? 'bad' : val > 0.5 ? 'warning' : 'good');
+                document.getElementById('flatSteadyError').textContent = f.steadyStateError ? f.steadyStateError.toFixed(2) + ' FSW' : '-';
+                document.getElementById('flatMeanError').textContent = f.meanAbsoluteError ? f.meanAbsoluteError.toFixed(2) + ' FSW' : '-';
+                document.getElementById('flatOscillation').textContent = f.oscillationCount || '0';
+            }
+
+            // Phase analysis - Descending
+            if (analysis.phases?.descending) {
+                const d = analysis.phases.descending;
+                document.getElementById('descendingDataPoints').textContent = d.dataPoints || '-';
+                setMetricClass('descendingOvershoot', d.overshootPercent, val => val > 8 ? 'bad' : val > 3 ? 'warning' : 'good');
+                document.getElementById('descendingOvershoot').textContent = d.overshootPercent ? d.overshootPercent.toFixed(1) + '%' : '-';
+                setMetricClass('descendingUndershoot', d.undershootPercent, val => val > 10 ? 'bad' : val > 5 ? 'warning' : 'good');
+                document.getElementById('descendingUndershoot').textContent = d.undershootPercent ? d.undershootPercent.toFixed(1) + '%' : '-';
+                document.getElementById('descendingOscillation').textContent = d.oscillationCount || '0';
+            }
+
+            // Adjustments
+            const adjustContainer = document.getElementById('adjustmentsContainer');
+            if (recommendations.adjustments && recommendations.adjustments.length > 0) {
+                let html = '';
+                recommendations.adjustments.forEach(adj => {
+                    html += `
+                        <div class="adjustment-item">
+                            <div class="adjustment-param">${adj.param}</div>
+                            <div class="adjustment-values">${adj.from} &#8594; ${adj.to}</div>
+                            <div class="adjustment-reason">${adj.reason}</div>
+                        </div>
+                    `;
+                });
+                adjustContainer.innerHTML = html;
+                document.getElementById('btnApply').disabled = false;
+            } else {
+                adjustContainer.innerHTML = '<p style="color: #888;">Parametre degisikligi onerilmiyor - sistem iyi calisiyor.</p>';
+                document.getElementById('btnApply').disabled = true;
+            }
+
+            // Summary
+            document.getElementById('analysisSummary').textContent = recommendations.summary || '-';
+        }
+
+        function setMetricClass(elementId, value, classifier) {
+            const el = document.getElementById(elementId);
+            if (el && value !== undefined) {
+                el.className = 'metric-value ' + classifier(value);
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

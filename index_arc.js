@@ -149,19 +149,19 @@ async function insertDefaultSensorData() {
 (async () => {
 	// SQLite: Foreign key constraint'leri geçici olarak devre dışı bırak
 	await db.sequelize.query('PRAGMA foreign_keys = OFF;');
-	
+
 	// Eski backup tablolarını temizle
 	try {
 		await db.sequelize.query('DROP TABLE IF EXISTS Users_backup;');
 	} catch (e) {
 		// Tablo yoksa hata vermesin
 	}
-	
+
 	await db.sequelize.sync({ alter: true });
-	
+
 	// Foreign key constraint'leri tekrar aktif et
 	await db.sequelize.query('PRAGMA foreign_keys = ON;');
-	
+
 	//await insertDefaultSensorData();
 	init();
 })();
@@ -191,7 +191,7 @@ app.use(bodyParser.json());
 app.use(
 	bodyParser.urlencoded({
 		extended: true,
-	})
+	}),
 );
 app.use(allRoutes);
 
@@ -394,7 +394,7 @@ function connectMQTT() {
 
 		mqttClient = mqtt.connect(
 			`${MQTT_CONFIG.protocol}://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}`,
-			mqttOptions
+			mqttOptions,
 		);
 
 		mqttClient.on('connect', (connack) => {
@@ -633,7 +633,7 @@ async function init() {
 	app.use(
 		bodyParser.urlencoded({
 			extended: true,
-		})
+		}),
 	);
 
 	// ***********************************************************
@@ -696,7 +696,7 @@ async function init() {
 					sensorCalibrationData['pressure'].sensorAnalogLower,
 					sensorCalibrationData['pressure'].sensorAnalogUpper,
 					dataObject.data[1],
-					sensorCalibrationData['pressure'].sensorDecimal
+					sensorCalibrationData['pressure'].sensorDecimal,
 				);
 				sessionStatus.pressure = sensorData['pressure'];
 				sessionStatus.main_fsw = sensorData['pressure'] * 33.4;
@@ -716,8 +716,8 @@ async function init() {
 						sensorCalibrationData['temperature'].sensorAnalogLower,
 						sensorCalibrationData['temperature'].sensorAnalogUpper,
 						dataObject.data[4],
-						sensorCalibrationData['temperature'].sensorDecimal
-					)
+						sensorCalibrationData['temperature'].sensorDecimal,
+					),
 				);
 
 				sensorData['humidity'] = filters.humidity.update(
@@ -727,8 +727,8 @@ async function init() {
 						sensorCalibrationData['humidity'].sensorAnalogLower,
 						sensorCalibrationData['humidity'].sensorAnalogUpper,
 						dataObject.data[5],
-						sensorCalibrationData['humidity'].sensorDecimal
-					)
+						sensorCalibrationData['humidity'].sensorDecimal,
+					),
 				);
 
 				// Sensör verilerini 10 saniyede bir güncelle
@@ -742,7 +742,7 @@ async function init() {
 						dataObject.data[2] || null, // O2 raw data
 						sensorData['o2'], // O2 real data
 						dataObject.data[5],
-						sensorData['humidity']
+						sensorData['humidity'],
 					).catch((error) => {
 						console.error('Sensör güncelleme hatası:', error);
 					});
@@ -753,25 +753,25 @@ async function init() {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Pressure sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else if (dataObject.data[4] < 800) {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Temperature sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else if (dataObject.data[5] < 800) {
 					sessionStatus.chamberStatus = 0;
 					sessionStatus.chamberStatusText = 'Humidity sensor problem';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				} else {
 					sessionStatus.chamberStatus = 1;
 					sessionStatus.chamberStatusText = 'Chamber is ready';
 					sessionStatus.chamberStatusTime = dayjs().format(
-						'YYYY-MM-DD HH:mm:ss'
+						'YYYY-MM-DD HH:mm:ss',
 					);
 				}
 				// console.log(
@@ -800,8 +800,8 @@ async function init() {
 					cmd === 'play'
 						? 'play_door_close'
 						: cmd === 'stop'
-						? 'stop_effect'
-						: cmd;
+							? 'stop_effect'
+							: cmd;
 				const { to, cmd, url, my, timeoutMs } = dt.data || {};
 				sendCommand({
 					url: url || process.env.SIGNALING_URL || 'ws://192.168.1.12:8080/ws',
@@ -823,7 +823,7 @@ async function init() {
 					.catch((err) => {
 						console.error(
 							'remoteCommand error:',
-							err && err.message ? err.message : err
+							err && err.message ? err.message : err,
 						);
 						try {
 							socket.emit('chamberControl', {
@@ -873,7 +873,7 @@ async function init() {
 					'Toplam Sure : ',
 					sessionStatus.toplamSure,
 					'Derinlik : ',
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 
 				const treatmentDuration =
@@ -882,12 +882,14 @@ async function init() {
 
 				let treatmentSegments = createAlternatingTreatmentProfile(
 					treatmentDuration,
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 
-
-
- 			if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessionStatus.speed == 2) {
+				if (
+					sessionStatus.toplamSure == 80 &&
+					sessionStatus.setDerinlik == 0.5 &&
+					sessionStatus.speed == 2
+				) {
 					treatmentSegments = [
 						[20, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -895,8 +897,7 @@ async function init() {
 						[5, sessionStatus.setDerinlik, 'air'],
 						[20, sessionStatus.setDerinlik, 'o'],
 					];
-				}
-				else if (sessionStatus.toplamSure == 80) {
+				} else if (sessionStatus.toplamSure == 80) {
 					treatmentSegments = [
 						[15, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -914,7 +915,7 @@ async function init() {
 						[5, sessionStatus.setDerinlik, 'air'],
 						[15, sessionStatus.setDerinlik, 'o'],
 					];
-				} 
+				}
 				// Build complete profile with descent, alternating treatment, and ascent
 				const setProfile = [
 					[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
@@ -938,7 +939,7 @@ async function init() {
 				saveLastSessionSettings(
 					sessionStatus.setDerinlik,
 					sessionStatus.toplamSure,
-					sessionStatus.speed
+					sessionStatus.speed,
 				);
 
 				socket.emit('chamberControl', {
@@ -969,7 +970,7 @@ async function init() {
 				console.log(
 					'sessionPause',
 					sessionStatus.pauseTime,
-					sessionStatus.pauseDepth
+					sessionStatus.pauseDepth,
 				);
 			} else if (dt.type == 'sessionResume') {
 				// Calculate resume parameters
@@ -983,7 +984,7 @@ async function init() {
 					pauseEndTime,
 					currentPressure,
 					sessionStatus.pauseDepth,
-					stepDuration
+					stepDuration,
 				);
 
 				sessionStatus.status = 1;
@@ -1068,7 +1069,11 @@ async function init() {
 				sessionStatus.dalisSuresi = dalisSuresi;
 				sessionStatus.cikisSuresi = cikisSuresi;
 
-				if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessionStatus.speed == 2) {
+				if (
+					sessionStatus.toplamSure == 80 &&
+					sessionStatus.setDerinlik == 0.5 &&
+					sessionStatus.speed == 2
+				) {
 					treatmentSegments = [
 						[20, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1076,8 +1081,7 @@ async function init() {
 						[5, sessionStatus.setDerinlik, 'air'],
 						[20, sessionStatus.setDerinlik, 'o'],
 					];
-				}
-				else if (sessionStatus.toplamSure == 80) {
+				} else if (sessionStatus.toplamSure == 80) {
 					treatmentSegments = [
 						[15, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1095,7 +1099,7 @@ async function init() {
 						[5, sessionStatus.setDerinlik, 'air'],
 						[15, sessionStatus.setDerinlik, 'o'],
 					];
-				} 
+				}
 
 				createChart();
 			} else if (dt.type == 'pressure') {
@@ -1117,7 +1121,11 @@ async function init() {
 
 				sessionStatus.dalisSuresi = dalisSuresi;
 				sessionStatus.cikisSuresi = cikisSuresi;
-if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessionStatus.speed == 2) {
+				if (
+					sessionStatus.toplamSure == 80 &&
+					sessionStatus.setDerinlik == 0.5 &&
+					sessionStatus.speed == 2
+				) {
 					treatmentSegments = [
 						[20, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1125,8 +1133,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 						[5, sessionStatus.setDerinlik, 'air'],
 						[20, sessionStatus.setDerinlik, 'o'],
 					];
-				}
-				else if (sessionStatus.toplamSure == 80) {
+				} else if (sessionStatus.toplamSure == 80) {
 					treatmentSegments = [
 						[15, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1144,7 +1151,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 						[5, sessionStatus.setDerinlik, 'air'],
 						[15, sessionStatus.setDerinlik, 'o'],
 					];
-				} 
+				}
 				createChart();
 			} else if (dt.type == 'speed') {
 				console.log('speed', dt.data.speed);
@@ -1168,7 +1175,11 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 				sessionStatus.cikisSuresi = cikisSuresi;
 				sessionStatus.speed = dt.data.speed;
 
-				if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessionStatus.speed == 2) {
+				if (
+					sessionStatus.toplamSure == 80 &&
+					sessionStatus.setDerinlik == 0.5 &&
+					sessionStatus.speed == 2
+				) {
 					treatmentSegments = [
 						[20, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1176,8 +1187,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 						[5, sessionStatus.setDerinlik, 'air'],
 						[20, sessionStatus.setDerinlik, 'o'],
 					];
-				}
-				else if (sessionStatus.toplamSure == 80) {
+				} else if (sessionStatus.toplamSure == 80) {
 					treatmentSegments = [
 						[15, sessionStatus.setDerinlik, 'o'],
 						[5, sessionStatus.setDerinlik, 'air'],
@@ -1195,7 +1205,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 						[5, sessionStatus.setDerinlik, 'air'],
 						[15, sessionStatus.setDerinlik, 'o'],
 					];
-				} 
+				}
 
 				createChart();
 
@@ -1207,34 +1217,34 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 					'Toplam Sure : ',
 					sessionStatus.toplamSure,
 					'Derinlik : ',
-					sessionStatus.setDerinlik
+					sessionStatus.setDerinlik,
 				);
 			} else if (dt.type == 'fanSpeed') {
 				if (dt.data.speed == 1) {
 					console.log('fanSpeed 1');
 					socket.emit(
 						'writeRegister',
-						JSON.stringify({ register: 'R01700', value: 50 })
+						JSON.stringify({ register: 'R01700', value: 50 }),
 					);
 				} else if (dt.data.speed == 2) {
 					socket.emit(
 						'writeRegister',
-						JSON.stringify({ register: 'R01700', value: 70 })
+						JSON.stringify({ register: 'R01700', value: 70 }),
 					);
 				} else if (dt.data.speed == 3) {
 					socket.emit(
 						'writeRegister',
-						JSON.stringify({ register: 'R01700', value: 100 })
+						JSON.stringify({ register: 'R01700', value: 100 }),
 					);
 				} else if (dt.data.speed == 4) {
 					socket.emit(
 						'writeRegister',
-						JSON.stringify({ register: 'R01700', value: 150 })
+						JSON.stringify({ register: 'R01700', value: 150 }),
 					);
 				} else if (dt.data.speed == 0) {
 					socket.emit(
 						'writeRegister',
-						JSON.stringify({ register: 'R01700', value: 0 })
+						JSON.stringify({ register: 'R01700', value: 0 }),
 					);
 				}
 			} else if (dt.type == 'ventilationStart') {
@@ -1295,7 +1305,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 				(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
 			const safeMiddle = Math.max(
 				0,
-				Number.isFinite(middleDuration) ? middleDuration : 0
+				Number.isFinite(middleDuration) ? middleDuration : 0,
 			);
 			const setProfileRaw = [
 				[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'],
@@ -1303,7 +1313,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 				[sessionStatus.cikisSuresi, 0, 'air'],
 			];
 			const setProfile = setProfileRaw.filter(
-				(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0
+				(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0,
 			);
 			const quickProfile = ProfileUtils.createQuickProfile(setProfile);
 			console.log(quickProfile);
@@ -1331,7 +1341,7 @@ if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessio
 				pauseEndTime,
 				currentPressure,
 				sessionStatus.pauseDepth,
-				stepDuration
+				stepDuration,
 			);
 
 			sessionStatus.status = 1;
@@ -1399,7 +1409,7 @@ function initializeO2Sensor() {
 			{
 				raw: o2CalibrationData.point100.raw,
 				actual: o2CalibrationData.point100.percentage,
-			}
+			},
 		);
 		console.log('O2 sensor calibration initialized successfully');
 	} catch (error) {
@@ -1442,10 +1452,10 @@ setInterval(() => {
 		// Demo modunda da aynı alan adlarında yumuşatılmış değerler gönder
 		sensorData['o2'] = filters.o2.update(21.1);
 		sensorData['temperature'] = filters.temperature.update(
-			22.5 + (Math.random() * 2 - 1)
+			22.5 + (Math.random() * 2 - 1),
 		); // 21.5-23.5°C
 		sensorData['humidity'] = filters.humidity.update(
-			45 + (Math.random() * 10 - 5)
+			45 + (Math.random() * 10 - 5),
 		); // 40-50%
 		sensorData['pressure'] = filters.pressure.update(0);
 		read_demo();
@@ -1475,7 +1485,7 @@ function read() {
 		'zaman',
 		sessionStatus.zaman,
 		'grafikdurum',
-		sessionStatus.grafikdurum
+		sessionStatus.grafikdurum,
 	);
 
 	console.log(
@@ -1486,7 +1496,7 @@ function read() {
 		'Temperature : ',
 		sensorData['temperature'],
 		'Humidity : ',
-		sensorData['humidity']
+		sensorData['humidity'],
 	);
 
 	// Ensure profile is always an array before any indexed access
@@ -1597,7 +1607,7 @@ function read() {
 			alarmSet(
 				'treatmenFinished',
 				'Treatment Finished. Take the mask off. Decompression Starting.',
-				0
+				0,
 			);
 
 			sendCommand({
@@ -1614,7 +1624,7 @@ function read() {
 				'oksijenBaslangicZamani',
 				sessionStatus.oksijenBaslangicZamani,
 				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
+				sessionStatus.oksijenBitisZamani,
 			);
 			oxygenClose();
 		} else if (
@@ -1649,7 +1659,7 @@ function read() {
 			'Step changed from',
 			sessionStatus.adim,
 			'to',
-			sessionStatus.profile[sessionStatus.zaman][2]
+			sessionStatus.profile[sessionStatus.zaman][2],
 		);
 		//alarmSet('stepChange', 'Step Changed', 0);
 	}
@@ -1741,7 +1751,7 @@ function read() {
 		'pressRateFswPerMin :',
 		sessionStatus.pressRateFswPerMin,
 		'pressRateBarPerMin :',
-		sessionStatus.pressRateBarPerMin
+		sessionStatus.pressRateBarPerMin,
 	);
 
 	console.log('difference :', difference);
@@ -1749,7 +1759,7 @@ function read() {
 	console.log(
 		'pressure :',
 		sessionStatus.pressure,
-		sessionStatus.fsw.toFixed(2)
+		sessionStatus.fsw.toFixed(2),
 	);
 
 	// İlk basınç kaydı
@@ -1782,7 +1792,7 @@ function read() {
 			alarmSet(
 				'deviation',
 				'Session paused ! Deviation in the session graph ! Check the compressor and air supply system.',
-				0
+				0,
 			);
 
 			sessionStatus.status = 2;
@@ -1799,7 +1809,7 @@ function read() {
 			console.log(
 				'sessionPause',
 				sessionStatus.pauseTime,
-				sessionStatus.pauseDepth
+				sessionStatus.pauseDepth,
 			);
 
 			sessionStatus.deviationAlarm = true;
@@ -1920,7 +1930,7 @@ function read() {
 			sessionStatus.hedeflenen.length,
 			sessionStatus.cikis,
 			sessionStatus.eop,
-			sessionStatus.main_fsw
+			sessionStatus.main_fsw,
 		);
 		// Seans sonu kontrolü
 		if (
@@ -2038,7 +2048,7 @@ function read_demo() {
 		'zaman',
 		sessionStatus.zaman,
 		'grafikdurum',
-		sessionStatus.grafikdurum
+		sessionStatus.grafikdurum,
 	);
 
 	// Update time display (simulated)
@@ -2083,7 +2093,7 @@ function read_demo() {
 		sessionStatus.pressure = sessionStatus.hedef / 33.4;
 		sessionStatus.main_fsw = sessionStatus.hedef / 33.4;
 		sensorData['pressure'] = filters.pressure.update(
-			sessionStatus.hedef / 33.4
+			sessionStatus.hedef / 33.4,
 		);
 
 		sessionStatus.o2 = sensorData['o2'];
@@ -2140,7 +2150,7 @@ function read_demo() {
 				alarmSet(
 					'oxygenBreak',
 					'Treatment Starting. Please put the mask on.',
-					0
+					0,
 				);
 				console.log(
 					'Değişti : oksijen',
@@ -2148,7 +2158,7 @@ function read_demo() {
 					'oksijenBaslangicZamani',
 					sessionStatus.oksijenBaslangicZamani,
 					'oksijenBitisZamani',
-					sessionStatus.oksijenBitisZamani
+					sessionStatus.oksijenBitisZamani,
 				);
 			} else if (
 				sessionStatus.oksijen == 1 &&
@@ -2160,7 +2170,7 @@ function read_demo() {
 					'oksijenBaslangicZamani',
 					sessionStatus.oksijenBaslangicZamani,
 					'oksijenBitisZamani',
-					sessionStatus.oksijenBitisZamani
+					sessionStatus.oksijenBitisZamani,
 				);
 				sessionStatus.oksijen = 0;
 				sessionStatus.oksijenBaslangicZamani = sessionStatus.zaman + 1 * 60;
@@ -2168,7 +2178,7 @@ function read_demo() {
 				alarmSet(
 					'oxygenBreak',
 					'Please take off your mask. Oxygen Break Time.',
-					0
+					0,
 				);
 			} else if (
 				sessionStatus.oksijen == 0 &&
@@ -2185,7 +2195,7 @@ function read_demo() {
 					'oksijenBaslangicZamani',
 					sessionStatus.oksijenBaslangicZamani,
 					'oksijenBitisZamani',
-					sessionStatus.oksijenBitisZamani
+					sessionStatus.oksijenBitisZamani,
 				);
 			}
 
@@ -2195,7 +2205,7 @@ function read_demo() {
 				'oksijenBaslangicZamani',
 				sessionStatus.oksijenBaslangicZamani,
 				'oksijenBitisZamani',
-				sessionStatus.oksijenBitisZamani
+				sessionStatus.oksijenBitisZamani,
 			);
 		} else {
 			// Düz durumdan çıkıldığında timer'ları sıfırla
@@ -2210,7 +2220,7 @@ function read_demo() {
 				alarmSet(
 					'treatmenFinished',
 					'Treatment Finished. Please take off your mask. Decompression Starting.',
-					0
+					0,
 				);
 				console.log(
 					'Değişti : oksijen',
@@ -2218,7 +2228,7 @@ function read_demo() {
 					'oksijenBaslangicZamani',
 					sessionStatus.oksijenBaslangicZamani,
 					'oksijenBitisZamani',
-					sessionStatus.oksijenBitisZamani
+					sessionStatus.oksijenBitisZamani,
 				);
 			}
 		}
@@ -2232,7 +2242,7 @@ function read_demo() {
 				'Step changed from',
 				sessionStatus.adim,
 				'to',
-				sessionStatus.profile[sessionStatus.zaman][2]
+				sessionStatus.profile[sessionStatus.zaman][2],
 			);
 			//alarmSet('stepChange', 'Step Changed', 0);
 		}
@@ -2274,7 +2284,7 @@ function read_demo() {
 		console.log(
 			'pressure (demo):',
 			sessionStatus.pressure,
-			sessionStatus.fsw.toFixed(2)
+			sessionStatus.fsw.toFixed(2),
 		);
 
 		// İlk basınç kaydı
@@ -2325,7 +2335,7 @@ function read_demo() {
 						if (difference > 0.1) {
 							console.log(
 								'Demo: Would open comp valve to',
-								sessionStatus.pcontrol
+								sessionStatus.pcontrol,
 							);
 							// compValve(sessionStatus.pcontrol); - disabled for demo
 						} else if (avgDifference < -0.6) {
@@ -2340,12 +2350,12 @@ function read_demo() {
 						if (difference > 0.1) {
 							console.log(
 								'Demo: Would open comp valve to',
-								sessionStatus.pcontrol
+								sessionStatus.pcontrol,
 							);
 						} else if (difference < -1) {
 							console.log(
 								'Demo: Would open decomp valve to',
-								Math.abs(control)
+								Math.abs(control),
 							);
 						} else {
 							console.log('Demo: Would close both valves');
@@ -2384,7 +2394,7 @@ function read_demo() {
 					'Demo: Ventilation mode - comp valve:',
 					sessionStatus.pcontrol,
 					'decomp valve:',
-					sessionStatus.vanacikis
+					sessionStatus.vanacikis,
 				);
 			}
 
@@ -2404,7 +2414,7 @@ function read_demo() {
 				sessionStatus.profile.length,
 				sessionStatus.cikis,
 				sessionStatus.eop,
-				sessionStatus.main_fsw
+				sessionStatus.main_fsw,
 			);
 
 			// Seans sonu kontrolü
@@ -2664,7 +2674,7 @@ function ventilationStart(mode = 1, intensity = null) {
 	sessionStatus.vanacikis = finalIntensity;
 
 	console.log(
-		`Ventilasyon başlatıldı - Mod: ${mode}, Şiddet: ${finalIntensity}°`
+		`Ventilasyon başlatıldı - Mod: ${mode}, Şiddet: ${finalIntensity}°`,
 	);
 
 	return {
@@ -2714,8 +2724,8 @@ function ventilationSetIntensity(intensity) {
 	};
 }
 
-
 function compValve(angle) {
+	const compressionValve_analog = 9000;
 	if (angle > 90) angle = 90;
 	if (angle < 0) angle = 0;
 	angle = Math.round(angle);
@@ -2729,11 +2739,11 @@ function compValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(2500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(compressionValve_analog, 16383, 0, 90, angle, 0); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
-		JSON.stringify({ register: 'R01000', value: send })
+		JSON.stringify({ register: 'R01000', value: send }),
 	);
 }
 
@@ -2746,6 +2756,7 @@ function drainOff() {
 }
 
 function decompValve(angle) {
+	const decompressionValve_analog = 2500;
 	angle = Math.round(angle);
 	console.log('decompvalve ', angle);
 
@@ -2760,11 +2771,18 @@ function decompValve(angle) {
 	// 	val: send,
 	// });
 
-	var send = linearConversion(2500, 16383, 0, 90, angle, 0); //(32767/90derece)
+	var send = linearConversion(
+		decompressionValve_analog,
+		16383,
+		0,
+		90,
+		angle,
+		0,
+	); //(32767/90derece)
 
 	socket.emit(
 		'writeRegister',
-		JSON.stringify({ register: 'R01001', value: send })
+		JSON.stringify({ register: 'R01001', value: send }),
 	);
 }
 
@@ -2773,7 +2791,7 @@ function sessionResume(
 	pauseEndTime,
 	currentPressure,
 	initialPressure,
-	stepDuration
+	stepDuration,
 ) {
 	// Calculate elapsed pause time
 	const pauseDuration = pauseEndTime - pauseStartTime;
@@ -2908,11 +2926,11 @@ function sessionFinishToZero(startTimeOverride, currentPressureOverride) {
 	let currentPressure = Number.isFinite(currentPressureOverride)
 		? currentPressureOverride
 		: typeof sensorData !== 'undefined' &&
-		  Number.isFinite(sensorData['pressure'])
-		? sensorData['pressure']
-		: sessionStatus.profile[startTime]
-		? sessionStatus.profile[startTime][1]
-		: 0;
+			  Number.isFinite(sensorData['pressure'])
+			? sensorData['pressure']
+			: sessionStatus.profile[startTime]
+				? sessionStatus.profile[startTime][1]
+				: 0;
 
 	if (!Array.isArray(sessionStatus.profile)) sessionStatus.profile = [];
 	// originalLength removed; we will truncate instead of filling with zeros
@@ -2979,7 +2997,7 @@ function sessionFinishToZero(startTimeOverride, currentPressureOverride) {
 		startTime,
 		'with',
 		timeToZero,
-		'seconds.'
+		'seconds.',
 	);
 }
 
@@ -3012,7 +3030,7 @@ function sessionStop() {
 	alarmSet(
 		'sessionStop',
 		'Session stop initiated. Decompressing to surface.',
-		0
+		0,
 	);
 
 	// Seans kaydını tamamla
@@ -3109,7 +3127,7 @@ function updateTotalSessionDuration(newTotalDuration) {
 	const newTreatmentDuration = newTotalDuration - (dalisSuresi + cikisSuresi);
 	if (newTreatmentDuration <= 0) {
 		console.log(
-			'Yeni toplam süre, dalış ve çıkış sürelerinin toplamından büyük olmalı.'
+			'Yeni toplam süre, dalış ve çıkış sürelerinin toplamından büyük olmalı.',
 		);
 		return false;
 	}
@@ -3172,7 +3190,7 @@ function updateTotalSessionDuration(newTotalDuration) {
 		return false;
 	}
 	console.log(
-		`Toplam süre ${newTotalDuration} dakika olarak güncellendi. Tedavi süresi: ${newTreatmentDuration} dakika.`
+		`Toplam süre ${newTotalDuration} dakika olarak güncellendi. Tedavi süresi: ${newTreatmentDuration} dakika.`,
 	);
 	return true;
 }
@@ -3199,7 +3217,7 @@ function updateDiveAndExitDurations(newDiveDuration, newExitDuration) {
 		totalDuration - (newDiveDuration + newExitDuration);
 	if (newTreatmentDuration <= 0) {
 		console.log(
-			'Yeni dalış ve çıkış sürelerinin toplamı, toplam süreden küçük olmalı.'
+			'Yeni dalış ve çıkış sürelerinin toplamı, toplam süreden küçük olmalı.',
 		);
 		return false;
 	}
@@ -3264,7 +3282,7 @@ function updateDiveAndExitDurations(newDiveDuration, newExitDuration) {
 	sessionStatus.dalisSuresi = newDiveDuration;
 	sessionStatus.cikisSuresi = newExitDuration;
 	console.log(
-		`Dalış süresi ${newDiveDuration} dakika, çıkış süresi ${newExitDuration} dakika olarak güncellendi. Tedavi süresi: ${newTreatmentDuration} dakika.`
+		`Dalış süresi ${newDiveDuration} dakika, çıkış süresi ${newExitDuration} dakika olarak güncellendi. Tedavi süresi: ${newTreatmentDuration} dakika.`,
 	);
 	return true;
 }
@@ -3382,41 +3400,44 @@ function createChart() {
 		(sessionStatus.dalisSuresi + sessionStatus.cikisSuresi);
 	const safeTreatmentDuration = Math.max(
 		0,
-		Number.isFinite(treatmentDuration) ? treatmentDuration : 0
+		Number.isFinite(treatmentDuration) ? treatmentDuration : 0,
 	);
 
 	let treatmentSegments = createAlternatingTreatmentProfile(
 		safeTreatmentDuration,
-		sessionStatus.setDerinlik
+		sessionStatus.setDerinlik,
 	);
-	if (sessionStatus.toplamSure == 80 && sessionStatus.setDerinlik == 0.5 && sessionStatus.speed == 2) {
-					treatmentSegments = [
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-					];
-				}
-				else if (sessionStatus.toplamSure == 80) {
-					treatmentSegments = [
-						[15, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[15, sessionStatus.setDerinlik, 'o'],
-					];
-				} else if (sessionStatus.toplamSure == 110) {
-					treatmentSegments = [
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[20, sessionStatus.setDerinlik, 'o'],
-						[5, sessionStatus.setDerinlik, 'air'],
-						[15, sessionStatus.setDerinlik, 'o'],
-					];
-				} 
+	if (
+		sessionStatus.toplamSure == 80 &&
+		sessionStatus.setDerinlik == 0.5 &&
+		sessionStatus.speed == 2
+	) {
+		treatmentSegments = [
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[20, sessionStatus.setDerinlik, 'o'],
+		];
+	} else if (sessionStatus.toplamSure == 80) {
+		treatmentSegments = [
+			[15, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[15, sessionStatus.setDerinlik, 'o'],
+		];
+	} else if (sessionStatus.toplamSure == 110) {
+		treatmentSegments = [
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[20, sessionStatus.setDerinlik, 'o'],
+			[5, sessionStatus.setDerinlik, 'air'],
+			[15, sessionStatus.setDerinlik, 'o'],
+		];
+	}
 	// Build complete profile with descent, alternating treatment, and ascent
 	const setProfileRaw = [
 		[sessionStatus.dalisSuresi, sessionStatus.setDerinlik, 'air'], // Descent phase
@@ -3426,7 +3447,7 @@ function createChart() {
 
 	// Filter out any invalid or non-positive duration segments to satisfy validator
 	const setProfile = setProfileRaw.filter(
-		(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0
+		(seg) => Array.isArray(seg) && Number.isFinite(seg[0]) && seg[0] > 0,
 	);
 
 	const quickProfile = ProfileUtils.createQuickProfile(setProfile);
@@ -3481,7 +3502,10 @@ async function logSessionSensorData() {
 	try {
 		// Profilden hedef basıncı al
 		let targetPressure = 0;
-		if (Array.isArray(sessionStatus.profile) && sessionStatus.profile[sessionStatus.zaman]) {
+		if (
+			Array.isArray(sessionStatus.profile) &&
+			sessionStatus.profile[sessionStatus.zaman]
+		) {
 			targetPressure = sessionStatus.profile[sessionStatus.zaman][1] || 0;
 		}
 
@@ -3518,9 +3542,14 @@ async function completeSessionRecord(status = 'completed') {
 			},
 			{
 				where: { id: currentSessionRecordId },
-			}
+			},
 		);
-		console.log('Session record completed:', currentSessionRecordId, 'Status:', status);
+		console.log(
+			'Session record completed:',
+			currentSessionRecordId,
+			'Status:',
+			status,
+		);
 		currentSessionRecordId = null;
 	} catch (error) {
 		console.error('Error completing session record:', error);
