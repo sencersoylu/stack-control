@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Configuration</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
             margin: 0;
@@ -364,11 +365,104 @@
             display: block;
         }
 
+        /* Valve Control Slider Styles */
+        .valve-control {
+            margin-bottom: 20px;
+        }
+
+        .valve-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .valve-label span {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .valve-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #00d4ff;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .valve-slider {
+            width: 100%;
+            height: 12px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .valve-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 212, 255, 0.4);
+            transition: transform 0.2s ease;
+        }
+
+        .valve-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .valve-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0, 212, 255, 0.4);
+        }
+
+        .valve-slider.decomp::-webkit-slider-thumb {
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            box-shadow: 0 2px 10px rgba(255, 149, 0, 0.4);
+        }
+
+        .valve-slider.decomp::-moz-range-thumb {
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            box-shadow: 0 2px 10px rgba(255, 149, 0, 0.4);
+        }
+
+        .valve-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .valve-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+            transition: background 0.3s ease;
+        }
+
+        .valve-status-dot.connected {
+            background: #00ff88;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+        }
+
         @media (max-width: 768px) {
             .config-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .form-row, .form-row-3 {
                 grid-template-columns: 1fr;
             }
@@ -611,6 +705,42 @@
                         <input type="checkbox" id="demoMode">
                         <label for="demoMode">Enable Demo Mode (No PLC Connection)</label>
                     </div>
+                </div>
+            </div>
+
+            <!-- Manual Valve Control -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon cyan">🎛️</div>
+                    <h2>Manuel Vana Kontrolü</h2>
+                </div>
+                <div class="valve-status">
+                    <div class="valve-status-dot" id="socketStatusDot"></div>
+                    <span id="socketStatusText">Bağlantı bekleniyor...</span>
+                </div>
+
+                <div class="valve-control" style="margin-top: 20px;">
+                    <div class="valve-label">
+                        <span>Kompresyon Vanası</span>
+                        <span class="valve-value" id="compValveValue">0%</span>
+                    </div>
+                    <input type="range" class="valve-slider" id="compValveSlider"
+                           min="0" max="100" value="0" step="1">
+                </div>
+
+                <div class="valve-control">
+                    <div class="valve-label">
+                        <span>Dekompresyon Vanası</span>
+                        <span class="valve-value" id="decompValveValue">0%</span>
+                    </div>
+                    <input type="range" class="valve-slider decomp" id="decompValveSlider"
+                           min="0" max="100" value="0" step="1">
+                </div>
+
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn btn-danger" onclick="closeAllValves()">
+                        ⛔ Tüm Vanaları Kapat
+                    </button>
                 </div>
             </div>
 
@@ -942,10 +1072,98 @@
             showLoading(false);
         }
 
-        // Load sensors when page loads
+        // ==========================================
+        // VALVE CONTROL FUNCTIONS
+        // ==========================================
+
+        let socket = null;
+
+        function initValveControl() {
+            // Connect to Socket.IO
+            socket = io(window.location.origin);
+
+            const statusDot = document.getElementById('socketStatusDot');
+            const statusText = document.getElementById('socketStatusText');
+            const compSlider = document.getElementById('compValveSlider');
+            const decompSlider = document.getElementById('decompValveSlider');
+            const compValue = document.getElementById('compValveValue');
+            const decompValue = document.getElementById('decompValveValue');
+
+            // Socket connection events
+            socket.on('connect', () => {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Bağlı';
+            });
+
+            socket.on('disconnect', () => {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Bağlantı kesildi';
+            });
+
+            socket.on('connect_error', () => {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Bağlantı hatası';
+            });
+
+            // Compression valve slider
+            compSlider.addEventListener('input', (e) => {
+                const percentage = parseInt(e.target.value);
+                compValue.textContent = percentage + '%';
+            });
+
+            compSlider.addEventListener('change', (e) => {
+                const percentage = parseInt(e.target.value);
+                const angle = percentage * 0.9; // Convert 0-100% to 0-90 degrees
+                sendValveCommand('compValve', angle);
+            });
+
+            // Decompression valve slider
+            decompSlider.addEventListener('input', (e) => {
+                const percentage = parseInt(e.target.value);
+                decompValue.textContent = percentage + '%';
+            });
+
+            decompSlider.addEventListener('change', (e) => {
+                const percentage = parseInt(e.target.value);
+                const angle = percentage * 0.9; // Convert 0-100% to 0-90 degrees
+                sendValveCommand('decompValve', angle);
+            });
+        }
+
+        function sendValveCommand(type, angle) {
+            if (socket && socket.connected) {
+                socket.emit('chamberControl', {
+                    type: type,
+                    data: { vana: angle }
+                });
+                showToast(`${type === 'compValve' ? 'Kompresyon' : 'Dekompresyon'} vanası: ${Math.round(angle / 0.9)}%`, 'success');
+            } else {
+                showToast('Socket bağlantısı yok!', 'error');
+            }
+        }
+
+        function closeAllValves() {
+            const compSlider = document.getElementById('compValveSlider');
+            const decompSlider = document.getElementById('decompValveSlider');
+            const compValue = document.getElementById('compValveValue');
+            const decompValue = document.getElementById('decompValveValue');
+
+            compSlider.value = 0;
+            decompSlider.value = 0;
+            compValue.textContent = '0%';
+            decompValue.textContent = '0%';
+
+            sendValveCommand('compValve', 0);
+            sendValveCommand('decompValve', 0);
+
+            showToast('Tüm vanalar kapatıldı', 'success');
+        }
+
+        // Load sensors and config when page loads
         document.addEventListener('DOMContentLoaded', () => {
             loadConfig();
             loadSensors();
+            initValveControl();
         });
     </script>
 </body>
