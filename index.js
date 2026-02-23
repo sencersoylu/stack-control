@@ -952,16 +952,16 @@ async function init() {
 			} else if (dt.type == 'fan') {
 				console.log('fan', dt.data.fan);
 				if (dt.data.fan) {
-					socket.emit('writeBit', { register: 'M0100', value: 1 });
+					fanOn();
 				} else {
-					socket.emit('writeBit', { register: 'M0100', value: 0 });
+					fanOff();
 				}
 			} else if (dt.type == 'light') {
 				console.log('light', dt.data.light);
 				if (dt.data.light) {
-					socket.emit('writeBit', { register: 'M0102', value: 1 });
+					lightOn();
 				} else {
-					socket.emit('writeBit', { register: 'M0102', value: 0 });
+					lightOff();
 				}
 			} else if (dt.type == 'tuningStart') {
 				// Tuning veri toplamaya basla
@@ -2321,13 +2321,13 @@ function doorOpen() {
 
 function buzzerOn() {
 	console.log('Buzzer On');
-	socket.emit('writeBit', { register: 'M0101', value: 1 });
+	socket.emit('writeBit', { register: 'M0102', value: 1 });
 	sessionStatus.doorStatus = 0;
 }
 
 function buzzerOff() {
 	console.log('Buzzer Off');
-	socket.emit('writeBit', { register: 'M0101', value: 0 });
+	socket.emit('writeBit', { register: 'M0102', value: 0 });
 	sessionStatus.doorStatus = 0;
 }
 function liveBit() {
@@ -2379,6 +2379,13 @@ function drainOn() {
 function drainOff() {
 	socket.emit('writeBit', { register: 'M0120', value: 0 });
 }
+function fanOn() {
+	socket.emit('writeBit', { register: 'M0101', value: 1 });
+}
+function fanOff() {
+	socket.emit('writeBit', { register: 'M0101', value: 0 });
+}
+
 
 function decompValve(angle) {
 	const decompressionValve_analog = global.appConfig?.decompressionValveAnalog || 3500;
