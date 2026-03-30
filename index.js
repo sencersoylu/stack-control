@@ -1482,7 +1482,8 @@ function read() {
 			if (
 				sessionStatus.diffrencesayac > 10 &&
 				sessionStatus.otomanuel == 0 &&
-				sessionStatus.deviationAlarm == false
+				sessionStatus.deviationAlarm == false &&
+				sessionStatus.grafikdurum == 0
 			) {
 				alarmSet(
 					'deviation',
