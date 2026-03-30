@@ -1638,6 +1638,10 @@ function read() {
 				compValve(0);
 				sessionStartBit(0);
 
+				setTimeout(() => {
+					decompValve(90);
+				}, 60000);
+
 				// Report session end to cloud
 				if (cloudReporter && cloudReporter.isEnabled()) {
 					cloudReporter
