@@ -13,6 +13,7 @@ const dayjs = require('dayjs');
 const SensorCalibration = require('./o2_calibration');
 const { tuningManager } = require('./tuning_manager');
 const { getCloudReporter } = require('./src/cloud/reporter');
+const { createThermostat } = require('./fanThermostat');
 
 // Cloud Reporter instance (initialized after config load)
 let cloudReporter = null;
@@ -26,6 +27,13 @@ let isConnectedPLC = 0;
 let sensorCalibrationData = {}; // Object to store all sensor calibration data
 global.sensorCalibrationData = sensorCalibrationData; // Make it globally accessible
 let demoMode = 0;
+
+// Sıcaklık kontrollü otomatik fan — ok sarmalayıcılar, hoisted fanOn/fanOff
+// fonksiyonları çağrı anında çözülür.
+const fanThermostat = createThermostat({
+	fanOn: () => fanOn(),
+	fanOff: () => fanOff(),
+});
 
 // Global app config - veritabanından yüklenecek
 global.appConfig = null;
@@ -950,12 +958,16 @@ async function init() {
 					sessionStatus.setDerinlik,
 				);
 			} else if (dt.type == 'fan') {
-				console.log('fan', dt.data.fan);
-				if (dt.data.fan) {
+				// Otomatik mod açıkken manuel fan komutu termostatla yarışmasın.
+				if (fanThermostat.isEnabled()) {
+					console.log('fan: yok sayıldı (fanAuto aktif)');
+				} else if (dt.data.fan) {
 					fanOn();
 				} else {
 					fanOff();
 				}
+			} else if (dt.type == 'fanAuto') {
+				fanThermostat.applySettings(dt.data);
 			} else if (dt.type == 'light') {
 				console.log('light', dt.data.light);
 				if (dt.data.light) {
@@ -1170,6 +1182,8 @@ setInterval(() => {
 	//     console.log(sessionStatus.profile[sessionStatus.zaman]);
 	// }
 
+	fanThermostat.tick(Number(sensorData['temperature']));
+
 	if (demoMode == 0) {
 		if (isConnectedPLC) read();
 	} else {
@@ -1182,6 +1196,7 @@ setInterval(() => {
 			co2: sensorData['co2'],
 			sessionStatus: sessionStatus,
 			doorStatus: sessionStatus.doorStatus,
+			fanAuto: fanThermostat.getState(),
 		});
 	}
 }, 1000);
@@ -1198,6 +1213,7 @@ function read() {
 		humidity: sensorData['humidity'],
 		sessionStatus: sessionStatus,
 		doorStatus: sessionStatus.doorStatus,
+		fanAuto: fanThermostat.getState(),
 	});
 
 	console.log(
