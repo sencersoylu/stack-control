@@ -1196,6 +1196,7 @@ setInterval(() => {
 			co2: sensorData['co2'],
 			sessionStatus: sessionStatus,
 			doorStatus: sessionStatus.doorStatus,
+			o2RawValue: sensorData.o2RawValue ?? null,
 			fanAuto: fanThermostat.getState(),
 		});
 	}
@@ -1213,6 +1214,7 @@ function read() {
 		humidity: sensorData['humidity'],
 		sessionStatus: sessionStatus,
 		doorStatus: sessionStatus.doorStatus,
+		o2RawValue: sensorData.o2RawValue ?? null,
 		fanAuto: fanThermostat.getState(),
 	});
 
