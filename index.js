@@ -1640,7 +1640,7 @@ function read() {
 				sessionStartBit(0);
 
 				setTimeout(() => {
-					decompValve(90);
+					decompValve(0);
 				}, 60000);
 
 				// Report session end to cloud
