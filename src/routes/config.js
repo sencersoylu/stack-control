@@ -110,9 +110,9 @@ router.post('/updateConfig', async (req, res) => {
 			Object.assign(global.appConfig, config.toJSON());
 		}
 
-		// Filtre alphaları restart beklemeden devreye girsin
-		if (typeof global.reinitializeFilters === 'function') {
-			global.reinitializeFilters();
+		// Değişiklikler restart beklemeden devreye girsin
+		if (typeof global.applyRuntimeConfig === 'function') {
+			global.applyRuntimeConfig();
 		}
 		
 		successResponse(req, res, config);
@@ -136,7 +136,12 @@ router.post('/resetConfig', async (req, res) => {
 		if (global.appConfig) {
 			Object.assign(global.appConfig, config.toJSON());
 		}
-		
+
+		// Değişiklikler restart beklemeden devreye girsin
+		if (typeof global.applyRuntimeConfig === 'function') {
+			global.applyRuntimeConfig();
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);
@@ -166,9 +171,9 @@ router.patch('/updateConfigField', async (req, res) => {
 			global.appConfig[field] = value;
 		}
 
-		// Filtre alphaları restart beklemeden devreye girsin
-		if (field.startsWith('filterAlpha') && typeof global.reinitializeFilters === 'function') {
-			global.reinitializeFilters();
+		// Değişiklik restart beklemeden devreye girsin
+		if (typeof global.applyRuntimeConfig === 'function') {
+			global.applyRuntimeConfig();
 		}
 
 		successResponse(req, res, config);
@@ -260,7 +265,12 @@ router.post('/updateControlParams', async (req, res) => {
 		if (global.appConfig) {
 			Object.assign(global.appConfig, updateData);
 		}
-		
+
+		// Değişiklikler restart beklemeden devreye girsin
+		if (typeof global.applyRuntimeConfig === 'function') {
+			global.applyRuntimeConfig();
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);
@@ -295,7 +305,12 @@ router.post('/updateDefaultSessionParams', async (req, res) => {
 		if (global.appConfig) {
 			Object.assign(global.appConfig, updateData);
 		}
-		
+
+		// Değişiklikler restart beklemeden devreye girsin
+		if (typeof global.applyRuntimeConfig === 'function') {
+			global.applyRuntimeConfig();
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);

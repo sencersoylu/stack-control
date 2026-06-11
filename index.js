@@ -242,6 +242,41 @@ function reloadO2Calibration() {
 }
 global.reloadO2Calibration = reloadO2Calibration;
 
+// Config route'larından çağrılır: değişiklikleri restart beklemeden uygular.
+// Seans varsayılanları yalnızca kabin boştayken yazılır — aktif seansın
+// dalisSuresi/setDerinlik gibi canlı değerlerini ezmek tehlikeli olur.
+function applyRuntimeConfig() {
+	if (!global.appConfig) return;
+
+	demoMode = global.appConfig.demoMode ? 1 : 0;
+
+	// Vana kontrol parametreleri — canlı ayar (tuning) güvenli ve isteniyor
+	sessionStatus.comp_offset = global.appConfig.compOffset;
+	sessionStatus.comp_gain = global.appConfig.compGain;
+	sessionStatus.comp_depth = global.appConfig.compDepth;
+	sessionStatus.decomp_offset = global.appConfig.decompOffset;
+	sessionStatus.decomp_gain = global.appConfig.decompGain;
+	sessionStatus.decomp_depth = global.appConfig.decompDepth;
+	sessionStatus.minimumvalve = global.appConfig.minimumValve;
+	sessionStatus.humidityAlarmLevel = global.appConfig.humidityAlarmLevel;
+
+	reinitializeFilters();
+	reloadO2Calibration();
+
+	if (sessionStatus.status == 0) {
+		sessionStatus.dalisSuresi = global.appConfig.defaultDalisSuresi;
+		sessionStatus.cikisSuresi = global.appConfig.defaultCikisSuresi;
+		sessionStatus.toplamSure = global.appConfig.defaultToplamSure;
+		sessionStatus.setDerinlik = global.appConfig.defaultSetDerinlik;
+		sessionStatus.speed = global.appConfig.defaultSpeed;
+		if (typeof initializeDefaultProfile === 'function') {
+			initializeDefaultProfile();
+		}
+	}
+	console.log('Runtime config applied (live)');
+}
+global.applyRuntimeConfig = applyRuntimeConfig;
+
 init();
 const allRoutes = require('./src/routes');
 
