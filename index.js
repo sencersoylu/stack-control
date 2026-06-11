@@ -1708,7 +1708,9 @@ function read() {
 					} else {
 						// Ä°niÅ
 						compValve(0);
-						decompValve(Math.abs(control));
+						// Negatif control = kabin profilin önünde → valf KAPALI.
+						// (Eski Math.abs öndeyken valfi ters yönde açıyordu.)
+						decompValve(Math.max(0, control));
 					}
 				}
 			}
@@ -2228,7 +2230,7 @@ function read_demo() {
 							} else if (avgDifference < -decompThreshold) {
 								console.log(
 									'Demo: Would open decomp valve to',
-									Math.abs(control),
+									Math.max(0, control),
 								);
 							} else {
 								console.log('Demo: Would close both valves');
@@ -2236,7 +2238,7 @@ function read_demo() {
 						}
 					} else {
 						// Ä°niÅ
-						console.log('Demo: Would open decomp valve to', Math.abs(control));
+						console.log('Demo: Would open decomp valve to', Math.max(0, control));
 					}
 				}
 			}
