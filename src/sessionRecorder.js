@@ -64,6 +64,9 @@ module.exports = {
 	},
 
 	// Her saniye çağrılır; 10 sn'de bir örnek alır, 60 sn'de bir flush eder.
+	// Not: index.js bu fonksiyonu zaman++ hemen sonrasında çağırır; hedef o
+	// tick'in ilerleyen satırlarında güncellenir, yani hedefBar ~1 sn geriden
+	// gelir. 10 sn örneklemede önemsiz — bilerek böyle.
 	addSample(t, hedefBar, pressure, temperature, humidity, o2) {
 		if (!current) return;
 		try {
@@ -104,18 +107,22 @@ module.exports = {
 
 	async stopRecording(status) {
 		if (!current) return;
-		const id = current.id;
+		// current'ı await'lerden ÖNCE temizle — yoksa 1 Hz döngü final persist
+		// sonrasına örnek itip sessizce kaybedebilir.
+		const snapshot = current;
+		current = null;
 		try {
-			await persist();
+			await db.sessions.update(
+				{ samples: snapshot.samples, events: snapshot.events },
+				{ where: { id: snapshot.id } },
+			);
 			await db.sessions.update(
 				{ status, endTime: new Date() },
-				{ where: { id } },
+				{ where: { id: snapshot.id } },
 			);
-			console.log('[recorder] session', id, 'finished:', status);
+			console.log('[recorder] session', snapshot.id, 'finished:', status);
 		} catch (err) {
 			console.error('[recorder] stopRecording:', err.message);
-		} finally {
-			current = null;
 		}
 	},
 
