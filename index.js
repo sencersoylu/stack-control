@@ -1805,7 +1805,7 @@ function read() {
 				sessionStatus.pressRateBarPerMin = 0;
 				// Deviation alarm için
 				sessionStatus.deviationAlarm = false;
-					sessionStatus.userStopped = false;
+				sessionStatus.userStopped = false;
 
 				// Korunan değerleri geri yükle
 				sessionStatus.setDerinlik = savedSetDerinlik;
@@ -1871,6 +1871,16 @@ function read_demo() {
 	const now = new Date();
 
 	if (sessionStatus.status > 0) sessionStatus.zaman++;
+	if (sessionStatus.status > 0) {
+		sessionRecorder.addSample(
+			sessionStatus.zaman,
+			sessionStatus.hedef / 33.4, // iç birim → bar
+			sensorData['pressure'],
+			sensorData['temperature'],
+			sensorData['humidity'],
+			sensorData['o2'],
+		);
+	}
 
 	// if (sessionStatus.status == 1 && sessionStatus.doorStatus == 0) {
 	//     console.log("door closing")
@@ -2211,6 +2221,12 @@ function read_demo() {
 				sessionStatus.main_fsw <= 0.5
 			) {
 				sessionStatus.eop = 1;
+				{
+					// 'stop' olayı varsa kullanıcı durdurmuştur
+					const wasStopped = sessionStatus.userStopped === true;
+					sessionRecorder.addEvent('complete', sessionStatus.zaman);
+					sessionRecorder.stopRecording(wasStopped ? 'stopped' : 'completed');
+				}
 				alarmSet('endOfSession', 'Session Finished.', 0);
 				sessionStartBit(0);
 
@@ -2283,6 +2299,7 @@ function read_demo() {
 				sessionStatus.pressRateBarPerMin = 0;
 				// Deviation alarm için
 				sessionStatus.deviationAlarm = false;
+				sessionStatus.userStopped = false;
 
 				// Korunan değerleri geri yükle
 				sessionStatus.setDerinlik = savedSetDerinlik;
