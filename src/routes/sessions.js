@@ -37,6 +37,30 @@ router.get('/sessions', async (req, res) => {
 	}
 });
 
+// İstatistik: toplam seans sayısı + toplam çalışma süresi (saniye).
+// NOT: '/sessions/:id'den ÖNCE tanımlı olmalı, yoksa 'stats' :id'ye yakalanır.
+router.get('/sessions/stats', async (req, res) => {
+	try {
+		const [row] = await db.sequelize.query(
+			`SELECT
+				(SELECT COUNT(*) FROM Sessions) AS totalSessions,
+				COALESCE(SUM((julianday(endTime) - julianday(startTime)) * 86400), 0)
+					AS totalSeconds
+			 FROM Sessions WHERE endTime IS NOT NULL`,
+			{ type: db.Sequelize.QueryTypes.SELECT },
+		);
+		res.json({
+			success: true,
+			data: {
+				totalSessions: row.totalSessions || 0,
+				totalSeconds: Math.round(row.totalSeconds || 0),
+			},
+		});
+	} catch (error) {
+		res.status(500).json({ success: false, errorMessage: error.message });
+	}
+});
+
 router.get('/sessions/:id', async (req, res) => {
 	try {
 		const row = await db.sessions.findByPk(req.params.id);
