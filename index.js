@@ -105,6 +105,14 @@ const defaultConfigValues = {
 };
 
 // Config'i veritabanından yükle
+// Mevcut hedef/hıza göre iniş-çıkış sürelerini sessionStatus'a yaz
+function applySpeedToSession() {
+	const rates = getSpeedRates();
+	const rate = rates[sessionStatus.speed] || rates[2];
+	sessionStatus.dalisSuresi = Math.round(sessionStatus.setDerinlik / rate.descent);
+	sessionStatus.cikisSuresi = Math.round(sessionStatus.setDerinlik / rate.ascent);
+}
+
 // Hız profilleri (bar/dk) — config'ten okunur, yoksa eski sabit davranış
 function getSpeedRates() {
 	const cfg = global.appConfig || {};
@@ -949,70 +957,26 @@ async function init() {
 			} else if (dt.type == 'changeSessionDuration') {
 				updateTotalSessionDuration(dt.data.newDuration);
 			} else if (dt.type == 'duration') {
-				console.log('duration', dt.data.duration);
-				sessionStatus.toplamSure = dt.data.duration;
-
-				let dalisSuresi = 0;
-				let cikisSuresi = 0;
-
-				if (sessionStatus.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-				} else if (sessionStatus.speed == 2) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-				} else if (sessionStatus.speed == 3) {
-					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+				// Yalnızca boşta — aktif seans changeSessionDuration ile yönetilir
+				if (sessionStatus.status == 0) {
+					console.log('duration', dt.data.duration);
+					sessionStatus.toplamSure = dt.data.duration;
+					applySpeedToSession();
+					createChart();
 				}
-
-				sessionStatus.dalisSuresi = dalisSuresi;
-				sessionStatus.cikisSuresi = cikisSuresi;
-
-				createChart();
 			} else if (dt.type == 'pressure') {
-				sessionStatus.setDerinlik = dt.data.pressure;
-
-				let dalisSuresi = 0;
-				let cikisSuresi = 0;
-
-				if (sessionStatus.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-				} else if (sessionStatus.speed == 2) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-				} else if (sessionStatus.speed == 3) {
-					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+				if (sessionStatus.status == 0) {
+					sessionStatus.setDerinlik = dt.data.pressure;
+					applySpeedToSession();
+					createChart();
 				}
-
-				sessionStatus.dalisSuresi = dalisSuresi;
-				sessionStatus.cikisSuresi = cikisSuresi;
-
-				createChart();
 			} else if (dt.type == 'speed') {
-				console.log('speed', dt.data.speed);
-				sessionStatus.speed = dt.data.speed;
-
-				let dalisSuresi = 0;
-				let cikisSuresi = 0;
-
-				if (dt.data.speed == 1) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10) / 0.5);
-				} else if (dt.data.speed == 2) {
-					dalisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
-				} else if (dt.data.speed == 3) {
-					dalisSuresi = Math.round(sessionStatus.setDerinlik * 10);
-					cikisSuresi = Math.round((sessionStatus.setDerinlik * 10 * 3) / 2);
+				if (sessionStatus.status == 0) {
+					console.log('speed', dt.data.speed);
+					sessionStatus.speed = dt.data.speed;
+					applySpeedToSession();
+					createChart();
 				}
-
-				sessionStatus.dalisSuresi = dalisSuresi;
-				sessionStatus.cikisSuresi = cikisSuresi;
-				sessionStatus.speed = dt.data.speed;
-				createChart();
 
 				console.log(
 					'Seans Baslat : ',
