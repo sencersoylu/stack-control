@@ -924,6 +924,7 @@ async function init() {
 
 				sessionStatus.status = 1;
 				sessionStatus.otomanuel = 0;
+				sessionStatus.plateauCompActive = false;
 				sessionRecorder.addEvent('resume', sessionStatus.zaman);
 
 				socket.emit('chamberControl', {
@@ -1152,6 +1153,7 @@ async function init() {
 
 			sessionStatus.status = 1;
 			sessionStatus.otomanuel = 0;
+			sessionStatus.plateauCompActive = false;
 			sessionRecorder.addEvent('resume', sessionStatus.zaman);
 		});
 
@@ -1649,26 +1651,32 @@ function read() {
 					} else if (sessionStatus.grafikdurum == 2) {
 						// Düz — histerezis: hedefin %2 altında dolmaya başla, hedefe
 						// ulaşınca dur (coral-control-arc'tan port; valf titremesini önler)
-						const plateauTarget =
-							sessionStatus.hedef || sessionStatus.setDerinlik || 1;
-						const compOpenThreshold = plateauTarget * 0.02;
-						const decompThreshold = plateauTarget * 0.1;
-
-						if (avgDifference > compOpenThreshold) {
-							sessionStatus.plateauCompActive = true;
-						} else if (avgDifference <= 0) {
-							sessionStatus.plateauCompActive = false;
-						}
-
-						if (sessionStatus.plateauCompActive) {
-							compValve(sessionStatus.pcontrol);
-							if (sessionStatus.ventil != 1) decompValve(0);
-						} else if (avgDifference < -decompThreshold) {
-							compValve(0);
-							decompValve(control);
-						} else {
+						if (!sessionStatus.hedef) {
+							// hedef yok (profil sonu/çıkış) — plato kontrolü yapma.
+							// setDerinlik bar cinsindendir, hedef bar×33.4: fallback birimi bozar.
 							compValve(0);
 							decompValve(0);
+						} else {
+							const plateauTarget = sessionStatus.hedef;
+							const compOpenThreshold = plateauTarget * 0.02;
+							const decompThreshold = plateauTarget * 0.1;
+
+							if (avgDifference > compOpenThreshold) {
+								sessionStatus.plateauCompActive = true;
+							} else if (avgDifference <= 0) {
+								sessionStatus.plateauCompActive = false;
+							}
+
+							if (sessionStatus.plateauCompActive) {
+								compValve(sessionStatus.pcontrol);
+								if (sessionStatus.ventil != 1) decompValve(0);
+							} else if (avgDifference < -decompThreshold) {
+								compValve(0);
+								decompValve(control);
+							} else {
+								compValve(0);
+								decompValve(0);
+							}
 						}
 					} else {
 						// Ä°niÅ
@@ -2157,31 +2165,36 @@ function read_demo() {
 					} else if (sessionStatus.grafikdurum == 2) {
 						// Düz — histerezis: hedefin %2 altında dolmaya başla, hedefe
 						// ulaşınca dur (coral-control-arc'tan port; valf titremesini önler)
-						const plateauTarget =
-							sessionStatus.hedef || sessionStatus.setDerinlik || 1;
-						const compOpenThreshold = plateauTarget * 0.02;
-						const decompThreshold = plateauTarget * 0.1;
-
-						if (avgDifference > compOpenThreshold) {
-							sessionStatus.plateauCompActive = true;
-						} else if (avgDifference <= 0) {
-							sessionStatus.plateauCompActive = false;
-						}
-
-						if (sessionStatus.plateauCompActive) {
-							console.log(
-								'Demo: Would open comp valve to',
-								sessionStatus.pcontrol,
-							);
-							if (sessionStatus.ventil != 1)
-								console.log('Demo: Would close decomp valve');
-						} else if (avgDifference < -decompThreshold) {
-							console.log(
-								'Demo: Would open decomp valve to',
-								Math.abs(control),
-							);
-						} else {
+						if (!sessionStatus.hedef) {
+							// hedef yok (profil sonu/çıkış) — plato kontrolü yapma.
+							// setDerinlik bar cinsindendir, hedef bar×33.4: fallback birimi bozar.
 							console.log('Demo: Would close both valves');
+						} else {
+							const plateauTarget = sessionStatus.hedef;
+							const compOpenThreshold = plateauTarget * 0.02;
+							const decompThreshold = plateauTarget * 0.1;
+
+							if (avgDifference > compOpenThreshold) {
+								sessionStatus.plateauCompActive = true;
+							} else if (avgDifference <= 0) {
+								sessionStatus.plateauCompActive = false;
+							}
+
+							if (sessionStatus.plateauCompActive) {
+								console.log(
+									'Demo: Would open comp valve to',
+									sessionStatus.pcontrol,
+								);
+								if (sessionStatus.ventil != 1)
+									console.log('Demo: Would close decomp valve');
+							} else if (avgDifference < -decompThreshold) {
+								console.log(
+									'Demo: Would open decomp valve to',
+									Math.abs(control),
+								);
+							} else {
+								console.log('Demo: Would close both valves');
+							}
 						}
 					} else {
 						// Ä°niÅ
