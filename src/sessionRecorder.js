@@ -9,6 +9,9 @@ const FLUSH_INTERVAL_S = 60;
 
 let current = null; // { id, samples: [], events: [], lastFlushT: 0 }
 
+// DİKKAT: persist() yalnız samples/events kolonlarını yazar. status/endTime'a
+// ASLA dokunmamalı — stopRecording'in status UPDATE'i ile yarışabilir ve
+// güvenlik bu kolon ayrımına dayanır.
 async function persist() {
 	if (!current) return;
 	await db.sessions.update(
@@ -33,9 +36,14 @@ module.exports = {
 
 	async startRecording({ targetPressure, duration, speed, profile }) {
 		try {
+			if (current) {
+				console.warn('[recorder] startRecording called while session active — ignored');
+				return;
+			}
 			// Profili 10 sn'e seyrelt, [t, bar] olarak sakla
-			const slimProfile = (Array.isArray(profile) ? profile : [])
-				.filter((p, i) => i % SAMPLE_INTERVAL_S === 0 || i === profile.length - 1)
+			const safeProfile = Array.isArray(profile) ? profile : [];
+			const slimProfile = safeProfile
+				.filter((p, i) => i % SAMPLE_INTERVAL_S === 0 || i === safeProfile.length - 1)
 				.map((p) => [p[0], p[1]]);
 			const row = await db.sessions.create({
 				startTime: new Date(),
