@@ -209,7 +209,20 @@ function reinitializeFilters() {
 		'humidity',
 	);
 	filters.co2 = new LowPassFilter(global.appConfig.filterAlphaCo2, 'co2');
+	console.log(
+		'Filters reinitialized (alphas)',
+		'P:', global.appConfig.filterAlphaPressure,
+		'O2:', global.appConfig.filterAlphaO2,
+		'T:', global.appConfig.filterAlphaTemperature,
+		'H:', global.appConfig.filterAlphaHumidity,
+		'CO2:', global.appConfig.filterAlphaCo2,
+	);
 }
+
+// Config route'ları restart gerektirmeden filtre alphalarini uygulayabilsin.
+// applyConfigToApp() bilerek açılmadı: seans varsayılanlarını da sıfırlıyor,
+// seans ortasında çağrılması tehlikeli olur.
+global.reinitializeFilters = reinitializeFilters;
 
 init();
 const allRoutes = require('./src/routes');

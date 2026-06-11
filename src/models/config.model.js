@@ -36,8 +36,8 @@ module.exports = (sequelize, Sequelize) => {
 			// Filter alpha değerleri
 			filterAlphaPressure: { type: Sequelize.FLOAT, defaultValue: 0.35 },
 			filterAlphaO2: { type: Sequelize.FLOAT, defaultValue: 0.2 },
-			filterAlphaTemperature: { type: Sequelize.FLOAT, defaultValue: 0.25 },
-			filterAlphaHumidity: { type: Sequelize.FLOAT, defaultValue: 0.25 },
+			filterAlphaTemperature: { type: Sequelize.FLOAT, defaultValue: 0.1 },
+			filterAlphaHumidity: { type: Sequelize.FLOAT, defaultValue: 0.1 },
 			filterAlphaCo2: { type: Sequelize.FLOAT, defaultValue: 0.3 },
 
 			// Kompresör kontrol parametreleri

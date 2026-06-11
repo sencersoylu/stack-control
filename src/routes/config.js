@@ -25,8 +25,8 @@ const defaultConfigValues = {
 	// Filter alpha değerleri
 	filterAlphaPressure: 0.35,
 	filterAlphaO2: 0.2,
-	filterAlphaTemperature: 0.25,
-	filterAlphaHumidity: 0.25,
+	filterAlphaTemperature: 0.1,
+	filterAlphaHumidity: 0.1,
 	filterAlphaCo2: 0.3,
 	
 	// Kompresör kontrol parametreleri
@@ -109,6 +109,11 @@ router.post('/updateConfig', async (req, res) => {
 		if (global.appConfig) {
 			Object.assign(global.appConfig, config.toJSON());
 		}
+
+		// Filtre alphaları restart beklemeden devreye girsin
+		if (typeof global.reinitializeFilters === 'function') {
+			global.reinitializeFilters();
+		}
 		
 		successResponse(req, res, config);
 	} catch (error) {
@@ -160,7 +165,12 @@ router.patch('/updateConfigField', async (req, res) => {
 		if (global.appConfig) {
 			global.appConfig[field] = value;
 		}
-		
+
+		// Filtre alphaları restart beklemeden devreye girsin
+		if (field.startsWith('filterAlpha') && typeof global.reinitializeFilters === 'function') {
+			global.reinitializeFilters();
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);
