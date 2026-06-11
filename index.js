@@ -1761,7 +1761,7 @@ function read() {
 				(sessionStatus.zaman > sessionStatus.profile.length - 60 ||
 					sessionStatus.cikis == 1) &&
 				sessionStatus.eop == 0 &&
-				sessionStatus.main_fsw <= 0.9
+				sessionStatus.main_fsw <= 0.3
 			) {
 				sessionStatus.eop = 1;
 				{
@@ -1779,7 +1779,7 @@ function read() {
 				setTimeout(() => {
 					decompValve(0);
 					compValve(0);
-				}, 10000);
+				}, 180000); // 3 dk — vana kapalıya dönme süresi
 
 				// Report session end to cloud
 				if (cloudReporter && cloudReporter.isEnabled()) {
@@ -2287,7 +2287,7 @@ function read_demo() {
 				(sessionStatus.zaman > sessionStatus.profile.length - 60 ||
 					sessionStatus.cikis == 1) &&
 				sessionStatus.eop == 0 &&
-				sessionStatus.main_fsw <= 0.5
+				sessionStatus.main_fsw <= 0.3
 			) {
 				sessionStatus.eop = 1;
 				{
