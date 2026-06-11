@@ -962,7 +962,7 @@ async function init() {
 					data: result,
 				});
 			} else if (dt.type == 'ventilationSetIntensity') {
-				const intensity = dt.data?.intensity || 30;
+				const intensity = dt.data?.intensity ?? 30;
 				const result = ventilationSetIntensity(intensity);
 				socket.emit('chamberControl', {
 					type: 'ventilationStatus',
@@ -1694,7 +1694,7 @@ function read() {
 
 							if (sessionStatus.plateauCompActive) {
 								compValve(sessionStatus.pcontrol);
-								if (sessionStatus.ventil != 1) decompValve(0);
+								decompValve(0);
 							} else if (avgDifference < -decompThreshold) {
 								compValve(0);
 								decompValve(control);
@@ -2214,8 +2214,7 @@ function read_demo() {
 									'Demo: Would open comp valve to',
 									sessionStatus.pcontrol,
 								);
-								if (sessionStatus.ventil != 1)
-									console.log('Demo: Would close decomp valve');
+								console.log('Demo: Would close decomp valve');
 							} else if (avgDifference < -decompThreshold) {
 								console.log(
 									'Demo: Would open decomp valve to',
