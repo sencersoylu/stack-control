@@ -408,6 +408,7 @@ let sessionStatus = {
 	highHumidity: false,
 	humidityAlarmLevel: 70,
 	speed: 1,
+	plateauCompActive: false,
 };
 
 // Make sessionStatus globally accessible
@@ -1646,11 +1647,23 @@ function read() {
 							decompValve(0);
 						}
 					} else if (sessionStatus.grafikdurum == 2) {
-						// DÃ¼z
-						if (avgDifference > 0.1) {
+						// Düz — histerezis: hedefin %2 altında dolmaya başla, hedefe
+						// ulaşınca dur (coral-control-arc'tan port; valf titremesini önler)
+						const plateauTarget =
+							sessionStatus.hedef || sessionStatus.setDerinlik || 1;
+						const compOpenThreshold = plateauTarget * 0.02;
+						const decompThreshold = plateauTarget * 0.1;
+
+						if (avgDifference > compOpenThreshold) {
+							sessionStatus.plateauCompActive = true;
+						} else if (avgDifference <= 0) {
+							sessionStatus.plateauCompActive = false;
+						}
+
+						if (sessionStatus.plateauCompActive) {
 							compValve(sessionStatus.pcontrol);
 							if (sessionStatus.ventil != 1) decompValve(0);
-						} else if (avgDifference < -1) {
+						} else if (avgDifference < -decompThreshold) {
 							compValve(0);
 							decompValve(control);
 						} else {
@@ -1806,6 +1819,7 @@ function read() {
 				// Deviation alarm için
 				sessionStatus.deviationAlarm = false;
 				sessionStatus.userStopped = false;
+				sessionStatus.plateauCompActive = false;
 
 				// Korunan değerleri geri yükle
 				sessionStatus.setDerinlik = savedSetDerinlik;
@@ -2141,13 +2155,27 @@ function read_demo() {
 							// compValve(0); - disabled for demo
 						}
 					} else if (sessionStatus.grafikdurum == 2) {
-						// DÃ¼z
-						if (difference > 0.1) {
+						// Düz — histerezis: hedefin %2 altında dolmaya başla, hedefe
+						// ulaşınca dur (coral-control-arc'tan port; valf titremesini önler)
+						const plateauTarget =
+							sessionStatus.hedef || sessionStatus.setDerinlik || 1;
+						const compOpenThreshold = plateauTarget * 0.02;
+						const decompThreshold = plateauTarget * 0.1;
+
+						if (avgDifference > compOpenThreshold) {
+							sessionStatus.plateauCompActive = true;
+						} else if (avgDifference <= 0) {
+							sessionStatus.plateauCompActive = false;
+						}
+
+						if (sessionStatus.plateauCompActive) {
 							console.log(
 								'Demo: Would open comp valve to',
 								sessionStatus.pcontrol,
 							);
-						} else if (difference < -1) {
+							if (sessionStatus.ventil != 1)
+								console.log('Demo: Would close decomp valve');
+						} else if (avgDifference < -decompThreshold) {
 							console.log(
 								'Demo: Would open decomp valve to',
 								Math.abs(control),
@@ -2300,6 +2328,7 @@ function read_demo() {
 				// Deviation alarm için
 				sessionStatus.deviationAlarm = false;
 				sessionStatus.userStopped = false;
+				sessionStatus.plateauCompActive = false;
 
 				// Korunan değerleri geri yükle
 				sessionStatus.setDerinlik = savedSetDerinlik;
