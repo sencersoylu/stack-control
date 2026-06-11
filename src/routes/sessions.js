@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/sessions', async (req, res) => {
 	try {
 		const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
-		const offset = parseInt(req.query.offset, 10) || 0;
+		const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
 		const rows = await db.sessions.findAll({
 			attributes: [
 				'id',
@@ -45,7 +45,7 @@ router.get('/sessions/:id', async (req, res) => {
 				.status(404)
 				.json({ success: false, errorMessage: 'Session not found' });
 		}
-		res.json({ success: true, data: row });
+		res.json({ success: true, data: row.toJSON() });
 	} catch (error) {
 		res.status(500).json({ success: false, errorMessage: error.message });
 	}

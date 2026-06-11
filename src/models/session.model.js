@@ -70,6 +70,8 @@ module.exports = (sequelize, DataTypes) => {
 				this.setDataValue('events', JSON.stringify(value));
 			},
 		},
+	}, {
+		indexes: [{ fields: ['startTime'] }],
 	});
 
 	return Session;
