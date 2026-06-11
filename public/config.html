@@ -653,6 +653,16 @@
                         <option value="3">Fast (3)</option>
                     </select>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Session Counter Limit</label>
+                        <input type="number" id="sessionCounterLimit" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Session Counter <span class="unit">(read-only)</span></label>
+                        <input type="number" id="sessionCounter" disabled style="opacity:0.5; cursor:not-allowed;">
+                    </div>
+                </div>
             </div>
 
             <!-- Alarm & Oxygen Settings -->
@@ -700,10 +710,76 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Light Register <span class="unit">(PLC address)</span></label>
+                    <input type="text" id="lightRegister" placeholder="M0103 (boş = devre dışı)">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Compression Valve Analog Zero</label>
+                        <input type="number" id="compressionValveAnalog">
+                    </div>
+                    <div class="form-group">
+                        <label>Decompression Valve Analog Zero</label>
+                        <input type="number" id="decompressionValveAnalog">
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>Demo Mode</label>
                     <div class="checkbox-group">
                         <input type="checkbox" id="demoMode">
                         <label for="demoMode">Enable Demo Mode (No PLC Connection)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speed Rates -->
+            <div class="config-section">
+                <div class="section-header">
+                    <div class="section-icon orange">⚡</div>
+                    <h2>Speed Rates <span class="unit">(bar/min)</span></h2>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label></label>
+                    </div>
+                    <div class="form-group">
+                        <label style="text-align:center; color:#00d4ff;">Descent</label>
+                    </div>
+                    <div class="form-group">
+                        <label style="text-align:center; color:#ff9500;">Ascent</label>
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Slow (Speed 1)</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed1DescentRate" step="0.001" min="0.01" max="1" placeholder="0.05">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed1AscentRate" step="0.001" min="0.01" max="1" placeholder="0.05">
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Medium (Speed 2)</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed2DescentRate" step="0.001" min="0.01" max="1" placeholder="0.0667">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed2AscentRate" step="0.001" min="0.01" max="1" placeholder="0.0667">
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Fast (Speed 3)</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed3DescentRate" step="0.001" min="0.01" max="1" placeholder="0.1">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="speed3AscentRate" step="0.001" min="0.01" max="1" placeholder="0.0667">
                     </div>
                 </div>
             </div>
@@ -795,9 +871,17 @@
             'filterAlphaPressure', 'filterAlphaO2', 'filterAlphaTemperature', 'filterAlphaHumidity', 'filterAlphaCo2',
             'compOffset', 'compGain', 'compDepth', 'decompOffset', 'decompGain', 'decompDepth', 'minimumValve',
             'defaultDalisSuresi', 'defaultCikisSuresi', 'defaultToplamSure', 'defaultSetDerinlik', 'defaultSpeed',
+            'sessionCounterLimit',
             'humidityAlarmLevel', 'highO2Level', 'oxygenDuration', 'airBreakDuration',
-            'plcIpAddress', 'plcPort', 'demoMode'
+            'plcIpAddress', 'plcPort', 'demoMode',
+            'lightRegister', 'compressionValveAnalog', 'decompressionValveAnalog',
+            'speed1DescentRate', 'speed1AscentRate',
+            'speed2DescentRate', 'speed2AscentRate',
+            'speed3DescentRate', 'speed3AscentRate'
         ];
+
+        // Read-only display fields (populated from config but never sent to updateConfig)
+        const readOnlyFields = ['sessionCounter'];
 
         // Checkbox alanları
         const checkboxFields = ['o2AlarmOn', 'demoMode'];
@@ -819,13 +903,23 @@
                             if (checkboxFields.includes(field)) {
                                 element.checked = config[field] || false;
                             } else {
-                                element.value = config[field] !== null && config[field] !== undefined 
-                                    ? config[field] 
+                                element.value = config[field] !== null && config[field] !== undefined
+                                    ? config[field]
                                     : '';
                             }
                         }
                     });
-                    
+
+                    // Populate read-only fields (display only, not sent on save)
+                    readOnlyFields.forEach(field => {
+                        const element = document.getElementById(field);
+                        if (element) {
+                            element.value = config[field] !== null && config[field] !== undefined
+                                ? config[field]
+                                : '';
+                        }
+                    });
+
                     showToast('Config loaded successfully', 'success');
                 } else {
                     showToast('Failed to load config', 'error');
