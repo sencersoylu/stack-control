@@ -7,6 +7,7 @@ const router = express.Router();
 router.use([require('./sensors.js')]);
 router.use([require('./config.js')]);
 router.use([require('./tuning.js')]);
+router.use([require('./sessions.js')]);
 
 // Yeni hasta ekle
 router.post('/patients', async (req, res) => {
