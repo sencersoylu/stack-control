@@ -792,6 +792,7 @@ async function init() {
 		});
 
 		socket.on('chamberControl', function (data) {
+			try {
 			console.log('chamberControl', data);
 			const dt = data;
 			console.log(dt);
@@ -1047,6 +1048,10 @@ async function init() {
 					type: 'tuningStatus',
 					data: status,
 				});
+			}
+			} catch (err) {
+				// Tek bir hatalı mesaj kabin yazılımını çökertmesin
+				console.error('chamberControl handler error:', err);
 			}
 		});
 
@@ -2436,6 +2441,28 @@ function drainOn() {
 function drainOff() {
 	socket.emit('writeBit', { register: 'M0120', value: 0 });
 }
+// Işık rölesi: PLC adresi config'ten (lightRegister, örn. 'M0103').
+// Adres bilinmeden bit YAZILMAZ — tıbbi cihazda yanlış çıkış tehlikeli.
+function lightOn() {
+	const reg = global.appConfig?.lightRegister;
+	if (!reg) {
+		console.warn('lightOn: lightRegister not configured — no PLC write');
+		return;
+	}
+	console.log('light On', reg);
+	socket.emit('writeBit', { register: reg, value: 1 });
+}
+
+function lightOff() {
+	const reg = global.appConfig?.lightRegister;
+	if (!reg) {
+		console.warn('lightOff: lightRegister not configured — no PLC write');
+		return;
+	}
+	console.log('light Off', reg);
+	socket.emit('writeBit', { register: reg, value: 0 });
+}
+
 function fanOn() {
 	socket.emit('writeBit', { register: 'M0101', value: 1 });
 }

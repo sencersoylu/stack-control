@@ -58,6 +58,9 @@ module.exports = (sequelize, Sequelize) => {
 			speed3DescentRate: { type: Sequelize.FLOAT, defaultValue: 0.1 },
 			speed3AscentRate: { type: Sequelize.FLOAT, defaultValue: 0.0667 },
 
+			// Işık rölesi PLC adresi (örn. 'M0103'); boş = devre dışı
+			lightRegister: { type: Sequelize.STRING, defaultValue: '' },
+
 			// Vana ayarları
 			minimumValve: { type: Sequelize.INTEGER, defaultValue: 5 },
 			compressionValveAnalog: { type: Sequelize.INTEGER, defaultValue: 9000 },

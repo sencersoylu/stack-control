@@ -47,6 +47,9 @@ const defaultConfigValues = {
 	speed3DescentRate: 0.1,
 	speed3AscentRate: 0.0667,
 
+	// Işık rölesi PLC adresi (boş = devre dışı)
+	lightRegister: '',
+
 	// Vana ayarları
 	minimumValve: 5,
 	
