@@ -1570,7 +1570,7 @@ function read() {
 				sessionStatus.diffrencesayac > 10 &&
 				sessionStatus.otomanuel == 0 &&
 				sessionStatus.deviationAlarm == false &&
-				sessionStatus.grafikdurum == 0
+				sessionStatus.grafikdurum == 1
 			) {
 				alarmSet(
 					'deviation',
