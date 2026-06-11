@@ -39,6 +39,14 @@ const defaultConfigValues = {
 	decompGain: 7,
 	decompDepth: 100,
 	
+	// Hız profilleri (bar/dk)
+	speed1DescentRate: 0.05,
+	speed1AscentRate: 0.05,
+	speed2DescentRate: 0.0667,
+	speed2AscentRate: 0.0667,
+	speed3DescentRate: 0.1,
+	speed3AscentRate: 0.0667,
+
 	// Vana ayarları
 	minimumValve: 5,
 	
@@ -273,6 +281,45 @@ router.post('/updateDefaultSessionParams', async (req, res) => {
 			Object.assign(global.appConfig, updateData);
 		}
 		
+		successResponse(req, res, config);
+	} catch (error) {
+		errorResponse(req, res, error);
+	}
+});
+
+
+// Hız profillerini güncelle (iniş/çıkış bar/dk)
+router.post('/updateSpeedRates', async (req, res) => {
+	try {
+		const allowed = [
+			'speed1DescentRate', 'speed1AscentRate',
+			'speed2DescentRate', 'speed2AscentRate',
+			'speed3DescentRate', 'speed3AscentRate',
+		];
+		const updateData = {};
+		for (const key of allowed) {
+			if (req.body[key] !== undefined) {
+				const value = Number(req.body[key]);
+				if (!Number.isFinite(value) || value < 0.01 || value > 1) {
+					return errorResponse(req, res, { message: `${key} must be between 0.01 and 1 bar/min` }, 400);
+				}
+				updateData[key] = value;
+			}
+		}
+		if (Object.keys(updateData).length === 0) {
+			return errorResponse(req, res, { message: 'No speed rate fields provided' }, 400);
+		}
+
+		let config = await db.config.findOne({ where: { id: 1 } });
+		if (!config) {
+			config = await db.config.create(defaultConfigValues);
+		}
+		await config.update(updateData);
+
+		if (global.appConfig) {
+			Object.assign(global.appConfig, updateData);
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);

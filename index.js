@@ -105,6 +105,16 @@ const defaultConfigValues = {
 };
 
 // Config'i veritabanından yükle
+// Hız profilleri (bar/dk) — config'ten okunur, yoksa eski sabit davranış
+function getSpeedRates() {
+	const cfg = global.appConfig || {};
+	return {
+		1: { descent: cfg.speed1DescentRate ?? 0.05, ascent: cfg.speed1AscentRate ?? 0.05 },
+		2: { descent: cfg.speed2DescentRate ?? 0.0667, ascent: cfg.speed2AscentRate ?? 0.0667 },
+		3: { descent: cfg.speed3DescentRate ?? 0.1, ascent: cfg.speed3AscentRate ?? 0.0667 },
+	};
+}
+
 async function loadConfigFromDatabase() {
 	try {
 		let config = await db.config.findOne({ where: { id: 1 } });
@@ -722,20 +732,11 @@ async function init() {
 			} else if (dt.type == 'alarmClear') {
 				alarmClear();
 			} else if (dt.type == 'sessionStart') {
-				let dalisSuresi = 0;
-				let cikisSuresi = 0;
-
-				// Use speed from data to calculate dalisSuresi and cikisSuresi
-				if (dt.data.speed == 1) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10) / 0.5);
-				} else if (dt.data.speed == 2) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
-				} else if (dt.data.speed == 3) {
-					dalisSuresi = Math.round((dt.data.setDerinlik * 10) / 1);
-					cikisSuresi = Math.round((dt.data.setDerinlik * 10 * 3) / 2);
-				}
+				// İniş/çıkış süreleri config'teki bar/dk oranlarından (tek kaynak)
+				const speedRates = getSpeedRates();
+				const rate = speedRates[dt.data.speed] || speedRates[2];
+				const dalisSuresi = Math.round(dt.data.setDerinlik / rate.descent);
+				const cikisSuresi = Math.round(dt.data.setDerinlik / rate.ascent);
 
 				sessionStatus.dalisSuresi = dalisSuresi;
 				sessionStatus.cikisSuresi = cikisSuresi;
@@ -1198,6 +1199,7 @@ setInterval(() => {
 			doorStatus: sessionStatus.doorStatus,
 			o2RawValue: sensorData.o2RawValue ?? null,
 			fanAuto: fanThermostat.getState(),
+			speedRates: getSpeedRates(),
 		});
 	}
 }, 1000);
@@ -1216,6 +1218,7 @@ function read() {
 		doorStatus: sessionStatus.doorStatus,
 		o2RawValue: sensorData.o2RawValue ?? null,
 		fanAuto: fanThermostat.getState(),
+		speedRates: getSpeedRates(),
 	});
 
 	console.log(

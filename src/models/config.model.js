@@ -50,6 +50,14 @@ module.exports = (sequelize, Sequelize) => {
 			decompGain: { type: Sequelize.FLOAT, defaultValue: 7 },
 			decompDepth: { type: Sequelize.FLOAT, defaultValue: 100 },
 
+			// Hız profilleri (bar/dk) — iniş/çıkış oranları tek kaynaktan
+			speed1DescentRate: { type: Sequelize.FLOAT, defaultValue: 0.05 },
+			speed1AscentRate: { type: Sequelize.FLOAT, defaultValue: 0.05 },
+			speed2DescentRate: { type: Sequelize.FLOAT, defaultValue: 0.0667 },
+			speed2AscentRate: { type: Sequelize.FLOAT, defaultValue: 0.0667 },
+			speed3DescentRate: { type: Sequelize.FLOAT, defaultValue: 0.1 },
+			speed3AscentRate: { type: Sequelize.FLOAT, defaultValue: 0.0667 },
+
 			// Vana ayarları
 			minimumValve: { type: Sequelize.INTEGER, defaultValue: 5 },
 			compressionValveAnalog: { type: Sequelize.INTEGER, defaultValue: 9000 },
