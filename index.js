@@ -858,6 +858,7 @@ async function init() {
 				sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 				sessionStatus.status = 1;
+				sessionStatus.userStopped = false; // yeni seans — eski stop bayrağı kalmasın
 				sessionRecorder.startRecording({
 					targetPressure: sessionStatus.setDerinlik,
 					duration: sessionStatus.toplamSure,
@@ -1143,6 +1144,7 @@ async function init() {
 			sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 			console.log(sessionStatus.profile);
+			sessionStatus.userStopped = false; // yeni seans — eski stop bayrağı kalmasın
 			sessionRecorder.startRecording({
 				targetPressure: sessionStatus.setDerinlik,
 				duration: sessionStatus.toplamSure,
