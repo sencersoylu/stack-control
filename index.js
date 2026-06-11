@@ -9,6 +9,7 @@ const cors = require('cors');
 const { linearConversion } = require('./src/helpers');
 const db = require('./src/models');
 const { ProfileUtils, ProfileManager } = require('./profile_manager');
+const sessionRecorder = require('./src/sessionRecorder');
 const dayjs = require('dayjs');
 const SensorCalibration = require('./o2_calibration');
 const { tuningManager } = require('./tuning_manager');
@@ -590,6 +591,7 @@ async function init() {
 	try {
 		await db.sequelize.sync({ alter: true });
 		console.log('Database synchronized successfully');
+		sessionRecorder.closeInterrupted();
 
 		// Tuning manager'a veritabani referansini ver
 		tuningManager.setDatabase(db);
@@ -853,6 +855,12 @@ async function init() {
 				sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 				sessionStatus.status = 1;
+				sessionRecorder.startRecording({
+					targetPressure: sessionStatus.setDerinlik,
+					duration: sessionStatus.toplamSure,
+					speed: sessionStatus.speed,
+					profile: sessionStatus.profile,
+				});
 
 				socket.emit('chamberControl', {
 					type: 'sessionStarting',
@@ -885,6 +893,7 @@ async function init() {
 				sessionStatus.otomanuel = 1;
 				sessionStatus.pauseTime = sessionStatus.zaman;
 				sessionStatus.pauseDepth = sensorData['pressure'];
+				sessionRecorder.addEvent('pause', sessionStatus.zaman, 'manual');
 				compValve(0);
 				decompValve(35);
 				compValve(0);
@@ -914,6 +923,7 @@ async function init() {
 
 				sessionStatus.status = 1;
 				sessionStatus.otomanuel = 0;
+				sessionRecorder.addEvent('resume', sessionStatus.zaman);
 
 				socket.emit('chamberControl', {
 					type: 'sessionResumed',
@@ -1108,6 +1118,12 @@ async function init() {
 			sessionStatus.profile = quickProfile.toTimeBasedArrayBySeconds();
 
 			console.log(sessionStatus.profile);
+			sessionRecorder.startRecording({
+				targetPressure: sessionStatus.setDerinlik,
+				duration: sessionStatus.toplamSure,
+				speed: sessionStatus.speed,
+				profile: sessionStatus.profile,
+			});
 		});
 
 		socket.on('sessionPause', function (data) {
@@ -1115,6 +1131,7 @@ async function init() {
 			sessionStatus.otomanuel = 1;
 			sessionStatus.pauseTime = sessionStatus.zaman;
 			sessionStatus.pauseDepth = sensorData['pressure'];
+			sessionRecorder.addEvent('pause', sessionStatus.zaman, 'manual');
 		});
 
 		socket.on('sessionResume', function (data) {
@@ -1134,6 +1151,7 @@ async function init() {
 
 			sessionStatus.status = 1;
 			sessionStatus.otomanuel = 0;
+			sessionRecorder.addEvent('resume', sessionStatus.zaman);
 		});
 
 		socket.on('sessionStop', function (data) {
@@ -1282,6 +1300,16 @@ function read() {
 	}
 
 	if (sessionStatus.status > 0) sessionStatus.zaman++;
+	if (sessionStatus.status > 0) {
+		sessionRecorder.addSample(
+			sessionStatus.zaman,
+			sessionStatus.hedef / 33.4, // iç birim → bar
+			sensorData['pressure'],
+			sensorData['temperature'],
+			sensorData['humidity'],
+			sensorData['o2'],
+		);
+	}
 	if (sessionStatus.status == 1 && sessionStatus.zaman == 1) {
 		alarmSet('sessionStarting', 'Session Starting', 0);
 		decompValve(0);
@@ -1551,6 +1579,7 @@ function read() {
 				sessionStatus.otomanuel = 1;
 				sessionStatus.pauseTime = sessionStatus.zaman;
 				sessionStatus.pauseDepth = sensorData['pressure'];
+				sessionRecorder.addEvent('pause', sessionStatus.zaman, 'deviation');
 				compValve(0);
 				decompValve(35);
 				compValve(0);
@@ -1689,6 +1718,12 @@ function read() {
 				sessionStatus.main_fsw <= 0.9
 			) {
 				sessionStatus.eop = 1;
+				{
+					// 'stop' olayı varsa kullanıcı durdurmuştur
+					const wasStopped = sessionStatus.userStopped === true;
+					sessionRecorder.addEvent('complete', sessionStatus.zaman);
+					sessionRecorder.stopRecording(wasStopped ? 'stopped' : 'completed');
+				}
 				alarmSet('endOfSession', 'Session Finished.', 0);
 				decompValve(90);
 				compValve(0);
@@ -1770,6 +1805,7 @@ function read() {
 				sessionStatus.pressRateBarPerMin = 0;
 				// Deviation alarm için
 				sessionStatus.deviationAlarm = false;
+					sessionStatus.userStopped = false;
 
 				// Korunan değerleri geri yükle
 				sessionStatus.setDerinlik = savedSetDerinlik;
@@ -2748,6 +2784,9 @@ function sessionStop() {
 		'Session stop initiated. Decompressing to surface.',
 		0,
 	);
+
+	sessionRecorder.addEvent('stop', sessionStatus.zaman);
+	sessionStatus.userStopped = true;
 
 	// Seans kaydını tamamla
 	//completeSessionRecord('stopped');
