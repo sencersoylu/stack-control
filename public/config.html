@@ -724,6 +724,10 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Valve Slew Rate <span class="unit">(°/sn, 0 = yumuşatma kapalı)</span></label>
+                    <input type="number" id="valveSlewRate" step="0.5" min="0" max="30">
+                </div>
+                <div class="form-group">
                     <label>Demo Mode</label>
                     <div class="checkbox-group">
                         <input type="checkbox" id="demoMode">
@@ -874,7 +878,7 @@
             'sessionCounterLimit',
             'humidityAlarmLevel', 'highO2Level', 'oxygenDuration', 'airBreakDuration',
             'plcIpAddress', 'plcPort', 'demoMode',
-            'lightRegister', 'compressionValveAnalog', 'decompressionValveAnalog',
+            'lightRegister', 'compressionValveAnalog', 'decompressionValveAnalog', 'valveSlewRate',
             'speed1DescentRate', 'speed1AscentRate',
             'speed2DescentRate', 'speed2AscentRate',
             'speed3DescentRate', 'speed3AscentRate'

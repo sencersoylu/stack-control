@@ -15,6 +15,7 @@ const SensorCalibration = require('./o2_calibration');
 const { tuningManager } = require('./tuning_manager');
 const { getCloudReporter } = require('./src/cloud/reporter');
 const { createThermostat } = require('./fanThermostat');
+const { smoothAngle } = require('./valveSmoother');
 
 // Cloud Reporter instance (initialized after config load)
 let cloudReporter = null;
@@ -81,6 +82,7 @@ const defaultConfigValues = {
 	minimumValve: 5,
 	compressionValveAnalog: 9000,
 	decompressionValveAnalog: 3500,
+	valveSlewRate: 2, // valf yumuşatma (derece/sn); 0 = kapalı
 
 	// Varsayılan seans parametreleri
 	defaultDalisSuresi: 10,
@@ -896,7 +898,7 @@ async function init() {
 				sessionStatus.pauseDepth = sensorData['pressure'];
 				sessionRecorder.addEvent('pause', sessionStatus.zaman, 'manual');
 				compValve(0);
-				decompValve(35);
+				decompValve(35, true);
 				compValve(0);
 				setTimeout(() => {
 					decompValve(0);
@@ -976,10 +978,10 @@ async function init() {
 				doorOpen();
 			} else if (dt.type == 'compValve') {
 				console.log('CompValve : ', dt.data.vana);
-				compValve(dt.data.vana);
+				compValve(dt.data.vana, true);
 			} else if (dt.type == 'decompValve') {
 				console.log('deCompValve : ', dt.data.vana);
-				decompValve(dt.data.vana);
+				decompValve(dt.data.vana, true);
 			} else if (dt.type == 'drainOn') {
 				console.log('drainOn');
 				drainOn();
@@ -1609,7 +1611,7 @@ function read() {
 				sessionStatus.pauseDepth = sensorData['pressure'];
 				sessionRecorder.addEvent('pause', sessionStatus.zaman, 'deviation');
 				compValve(0);
-				decompValve(35);
+				decompValve(35, true);
 				compValve(0);
 				setTimeout(() => {
 					decompValve(0);
@@ -1735,7 +1737,7 @@ function read() {
 					if (sessionStatus.pcontrol < 15) sessionStatus.pcontrol = 16;
 				}
 				compValve(sessionStatus.pcontrol);
-				decompValve(sessionStatus.vanacikis);
+				decompValve(sessionStatus.vanacikis, true);
 			}
 
 			// ÃÄ±kÄ±Å durumu
@@ -2550,10 +2552,20 @@ function zeroPad(num, numZeros) {
 	return zeroString + n;
 }
 
-function compValve(angle) {
+let compAngleState = 0; // yumuşatma için son komutlanan açı
+function compValve(angle, instant) {
 	const compressionValve_analog = global.appConfig?.compressionValveAnalog || 9000;
+	if (!Number.isFinite(angle)) angle = 0; // hatalı hesap → kompresör kapalı (güvenli taraf)
 	if (angle > 90) angle = 90;
 	if (angle < 0) angle = 0;
+	if (!instant) {
+		angle = smoothAngle(
+			compAngleState,
+			angle,
+			Number(global.appConfig?.valveSlewRate ?? 2),
+		);
+	}
+	compAngleState = angle;
 	angle = Math.round(angle);
 	console.log('compValve', angle);
 
@@ -2610,13 +2622,23 @@ function fanOff() {
 }
 
 
-function decompValve(angle) {
+let decompAngleState = 0; // yumuşatma için son komutlanan açı
+function decompValve(angle, instant) {
 	const decompressionValve_analog = global.appConfig?.decompressionValveAnalog || 3500;
-	angle = Math.round(angle);
-	console.log('decompvalve ', angle);
-
+	// decomp_depth/fsw sıfıra bölünebilir: Infinity→90 (clamp), NaN→0
+	if (Number.isNaN(angle)) angle = 0;
 	if (angle > 90) angle = 90;
 	if (angle < 0) angle = 0;
+	if (!instant) {
+		angle = smoothAngle(
+			decompAngleState,
+			angle,
+			Number(global.appConfig?.valveSlewRate ?? 2),
+		);
+	}
+	decompAngleState = angle;
+	angle = Math.round(angle);
+	console.log('decompvalve ', angle);
 
 	// var send = angle * 364.08; //(32767/90derece)
 	// send = send.toFixed(0);

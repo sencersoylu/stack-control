@@ -65,6 +65,8 @@ module.exports = (sequelize, Sequelize) => {
 			minimumValve: { type: Sequelize.INTEGER, defaultValue: 5 },
 			compressionValveAnalog: { type: Sequelize.INTEGER, defaultValue: 9000 },
 			decompressionValveAnalog: { type: Sequelize.INTEGER, defaultValue: 3500 },
+			// Valf yumuşatma: kontrol döngüsü açı komutlarında derece/sn sınırı; 0 = kapalı
+			valveSlewRate: { type: Sequelize.FLOAT, defaultValue: 2 },
 
 			// Varsayılan seans parametreleri
 			defaultDalisSuresi: { type: Sequelize.INTEGER, defaultValue: 10 },
