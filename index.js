@@ -1350,7 +1350,7 @@ function read() {
 			setTimeout(() => {
 				decompValve(0);
 				compValve(0);
-			}, 60000);
+			}, 10000);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
 			sessionStatus.profile[sessionStatus.zaman + 1] &&
@@ -1659,7 +1659,8 @@ function read() {
 
 				setTimeout(() => {
 					decompValve(0);
-				}, 60000);
+					compValve(0);
+				}, 10000);
 
 				// Report session end to cloud
 				if (cloudReporter && cloudReporter.isEnabled()) {
