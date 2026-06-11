@@ -15,7 +15,9 @@ module.exports = (sequelize, DataTypes) => {
 		},
 		status: {
 			type: DataTypes.STRING,
+			allowNull: false,
 			defaultValue: 'running', // running, completed, stopped, interrupted
+			validate: { isIn: [['running', 'completed', 'stopped', 'interrupted']] },
 		},
 		targetPressure: {
 			type: DataTypes.FLOAT, // bar
@@ -35,7 +37,8 @@ module.exports = (sequelize, DataTypes) => {
 			allowNull: true,
 			get() {
 				const value = this.getDataValue('profile');
-				return value ? JSON.parse(value) : [];
+				if (!value || value === 'null') return [];
+				return JSON.parse(value);
 			},
 			set(value) {
 				this.setDataValue('profile', JSON.stringify(value));
@@ -47,7 +50,8 @@ module.exports = (sequelize, DataTypes) => {
 			allowNull: true,
 			get() {
 				const value = this.getDataValue('samples');
-				return value ? JSON.parse(value) : [];
+				if (!value || value === 'null') return [];
+				return JSON.parse(value);
 			},
 			set(value) {
 				this.setDataValue('samples', JSON.stringify(value));
@@ -59,7 +63,8 @@ module.exports = (sequelize, DataTypes) => {
 			allowNull: true,
 			get() {
 				const value = this.getDataValue('events');
-				return value ? JSON.parse(value) : [];
+				if (!value || value === 'null') return [];
+				return JSON.parse(value);
 			},
 			set(value) {
 				this.setDataValue('events', JSON.stringify(value));
