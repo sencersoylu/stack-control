@@ -947,6 +947,27 @@ async function init() {
 						currentTime: sessionStatus.zaman,
 					},
 				});
+			} else if (dt.type == 'ventilationStart') {
+				const mode = dt.data?.mode || 1;
+				const intensity = dt.data?.intensity ?? null;
+				const result = ventilationStart(mode, intensity);
+				socket.emit('chamberControl', {
+					type: 'ventilationStatus',
+					data: result,
+				});
+			} else if (dt.type == 'ventilationStop') {
+				const result = ventilationStop();
+				socket.emit('chamberControl', {
+					type: 'ventilationStatus',
+					data: result,
+				});
+			} else if (dt.type == 'ventilationSetIntensity') {
+				const intensity = dt.data?.intensity || 30;
+				const result = ventilationSetIntensity(intensity);
+				socket.emit('chamberControl', {
+					type: 'ventilationStatus',
+					data: result,
+				});
 			} else if (dt.type == 'doorClose') {
 				console.log('doorClose');
 				doorClose();
@@ -1406,6 +1427,10 @@ function read() {
 				'Treatment Finished. Take the mask off. Decompression Starting.',
 				0,
 			);
+			if (sessionStatus.ventil != 0) {
+				console.log('Dekompresyon başladı → ventilasyon durduruluyor');
+				ventilationStop();
+			}
 
 			console.log(
 				'DeÄiÅti : oksijen',
@@ -2029,6 +2054,10 @@ function read_demo() {
 				'Treatment Finished. Take the mask off. Decompression Starting.',
 				0,
 			);
+			if (sessionStatus.ventil != 0) {
+				console.log('Dekompresyon başladı → ventilasyon durduruluyor');
+				ventilationStop();
+			}
 
 			console.log(
 				'DeÄiÅti : oksijen',
@@ -2810,6 +2839,80 @@ function sessionFinishToZero(startTimeOverride, currentPressureOverride) {
 		timeToZero,
 		'seconds.',
 	);
+}
+
+/**
+ * Manuel ventilasyon başlat (coral-control-arc'tan port)
+ * @param {number} mode - 1: Düşük(20°), 2: Orta(35°), 3: Yüksek(50°)
+ * @param {number|null} intensity - Çıkış vanası açıklığı (0-90), null = mod varsayılanı
+ */
+function ventilationStart(mode = 1, intensity = null) {
+	if (sessionStatus.status === 0) {
+		console.log('Ventilasyon: Aktif seans yok, ventilasyon başlatılamaz.');
+		return { success: false, message: 'No active session' };
+	}
+
+	if (mode < 1 || mode > 3) {
+		mode = 1;
+	}
+
+	const defaultIntensities = {
+		1: 20, // Düşük
+		2: 35, // Orta
+		3: 50, // Yüksek
+	};
+
+	const finalIntensity =
+		intensity !== null
+			? Math.min(90, Math.max(0, intensity))
+			: defaultIntensities[mode];
+
+	sessionStatus.ventil = mode;
+	sessionStatus.vanacikis = finalIntensity;
+
+	console.log(
+		`Ventilasyon başlatıldı - Mod: ${mode}, Şiddet: ${finalIntensity}°`,
+	);
+
+	return {
+		success: true,
+		mode: mode,
+		intensity: finalIntensity,
+		message: `Ventilation started - Mode: ${mode}, Intensity: ${finalIntensity}°`,
+	};
+}
+
+/** Manuel ventilasyon durdurma */
+function ventilationStop() {
+	sessionStatus.ventil = 0;
+	console.log('Ventilasyon durduruldu');
+
+	compValve(0);
+	decompValve(0);
+
+	return {
+		success: true,
+		message: 'Ventilation stopped',
+	};
+}
+
+/** Ventilasyon şiddetini çalışırken ayarla (0-90 derece) */
+function ventilationSetIntensity(intensity) {
+	if (sessionStatus.ventil === 0) {
+		console.log('Ventilasyon: Ventilasyon aktif değil.');
+		return { success: false, message: 'Ventilation is not active' };
+	}
+
+	const finalIntensity = Math.min(90, Math.max(0, intensity));
+	sessionStatus.vanacikis = finalIntensity;
+
+	console.log(`Ventilasyon şiddeti ayarlandı: ${finalIntensity}°`);
+
+	return {
+		success: true,
+		intensity: finalIntensity,
+		message: `Ventilation intensity set to ${finalIntensity}°`,
+	};
 }
 
 function sessionStop() {
