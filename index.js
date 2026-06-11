@@ -1757,12 +1757,20 @@ function read() {
 				sessionStatus.main_fsw,
 			);
 			// Seans sonu kontrolÃ¼
+			// Yüzeye (≤0.3 fsw) inince hemen değil, 30 sn kesintisiz beklemeden
+			// sonra seans sonu — anlık 0 okuması yanıltmasın.
 			if (
 				(sessionStatus.zaman > sessionStatus.profile.length - 60 ||
 					sessionStatus.cikis == 1) &&
 				sessionStatus.eop == 0 &&
 				sessionStatus.main_fsw <= 0.3
 			) {
+				sessionStatus.surfaceCounter = (sessionStatus.surfaceCounter || 0) + 1;
+			} else {
+				sessionStatus.surfaceCounter = 0;
+			}
+			if (sessionStatus.surfaceCounter >= 30 && sessionStatus.eop == 0) {
+				sessionStatus.surfaceCounter = 0;
 				sessionStatus.eop = 1;
 				{
 					// 'stop' olayı varsa kullanıcı durdurmuştur
@@ -2283,12 +2291,20 @@ function read_demo() {
 			);
 
 			// Seans sonu kontrolÃ¼
+			// Yüzeye (≤0.3 fsw) inince hemen değil, 30 sn kesintisiz beklemeden
+			// sonra seans sonu — anlık 0 okuması yanıltmasın.
 			if (
 				(sessionStatus.zaman > sessionStatus.profile.length - 60 ||
 					sessionStatus.cikis == 1) &&
 				sessionStatus.eop == 0 &&
 				sessionStatus.main_fsw <= 0.3
 			) {
+				sessionStatus.surfaceCounter = (sessionStatus.surfaceCounter || 0) + 1;
+			} else {
+				sessionStatus.surfaceCounter = 0;
+			}
+			if (sessionStatus.surfaceCounter >= 30 && sessionStatus.eop == 0) {
+				sessionStatus.surfaceCounter = 0;
 				sessionStatus.eop = 1;
 				{
 					// 'stop' olayı varsa kullanıcı durdurmuştur
