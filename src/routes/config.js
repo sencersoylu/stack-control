@@ -217,7 +217,12 @@ router.post('/updateO2Calibration', async (req, res) => {
 		if (global.appConfig) {
 			Object.assign(global.appConfig, updateData);
 		}
-		
+
+		// Canlı o2Sensor katsayılarını yeni noktalarla yeniden kur
+		if (typeof global.reloadO2Calibration === 'function') {
+			global.reloadO2Calibration();
+		}
+
 		successResponse(req, res, config);
 	} catch (error) {
 		errorResponse(req, res, error);

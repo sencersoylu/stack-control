@@ -224,6 +224,24 @@ function reinitializeFilters() {
 // seans ortasında çağrılması tehlikeli olur.
 global.reinitializeFilters = reinitializeFilters;
 
+// Kalibrasyon REST'ten güncellenince canlı o2Sensor katsayıları da yenilensin —
+// aksi halde yeni noktalar restart'a kadar etkisiz kalıyordu.
+function reloadO2Calibration() {
+	if (!global.appConfig) return;
+	o2CalibrationData.point0.raw = global.appConfig.o2Point0Raw;
+	o2CalibrationData.point0.percentage = global.appConfig.o2Point0Percentage;
+	o2CalibrationData.point21.raw = global.appConfig.o2Point21Raw;
+	o2CalibrationData.point21.percentage = global.appConfig.o2Point21Percentage;
+	o2CalibrationData.point100.raw = global.appConfig.o2Point100Raw;
+	o2CalibrationData.point100.percentage = global.appConfig.o2Point100Percentage;
+	o2CalibrationData.o2AlarmValuePercentage =
+		global.appConfig.o2AlarmValuePercentage;
+	o2CalibrationData.o2AlarmOn = global.appConfig.o2AlarmOn;
+	o2CalibrationData.lastCalibrationDate = global.appConfig.o2CalibrationDate;
+	initializeO2Sensor();
+}
+global.reloadO2Calibration = reloadO2Calibration;
+
 init();
 const allRoutes = require('./src/routes');
 
