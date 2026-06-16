@@ -674,6 +674,7 @@ async function init() {
 			decompValve(0);
 			sessionStartBit(0);
 			isConnectedPLC = 1;
+			o2RelayState = null; // reconnect sonrası M0104 rölesini yeniden senkronla
 
 			//socket.emit('writeRegister', JSON.stringify({address: "R03904", value: 8000}));
 		});
@@ -1283,6 +1284,9 @@ setInterval(() => {
 			speedRates: getSpeedRates(),
 		});
 	}
+
+	// O2/hava periyoduna göre mavi LED rölesini (M0104) güncelle
+	syncO2Relay();
 }, 1000);
 
 // Her 3 saniyede bir livebit gÃ¶nder
@@ -2623,6 +2627,21 @@ function fanOn() {
 }
 function fanOff() {
 	socket.emit('writeBit', { register: 'M0101', value: 0 });
+}
+
+// O2 molası rölesi (M0104 → mavi LED).
+// O2 periyodunda (sessionStatus.oksijen == 1) röle 1 (LED yanar),
+// hava periyodunda 0 (LED söner). Açıp kapatmayı seans akışı belirler.
+// Yalnızca durum DEĞİŞİNCE PLC'ye yazılır — her saniye spam edilmez.
+const O2_RELAY_REGISTER = 'M0104';
+let o2RelayState = null; // null = bilinmiyor; ilk sync + reconnect sonrası yazdırır
+function syncO2Relay() {
+	if (!socket) return;
+	const desired = sessionStatus.oksijen == 1 ? 1 : 0;
+	if (o2RelayState === desired) return;
+	o2RelayState = desired;
+	console.log(`O2 relay (${O2_RELAY_REGISTER}) →`, desired, desired ? '(mavi LED yandı)' : '(mavi LED söndü)');
+	socket.emit('writeBit', { register: O2_RELAY_REGISTER, value: desired });
 }
 
 
