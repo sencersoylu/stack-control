@@ -1412,11 +1412,13 @@ function read() {
 		}
 
 		// Profile bazlÄ± oksijen kontrolÃ¼
+		// Seviye-bazlı O2 tespiti: bulunulan segment 'o' ise oksijen AÇ.
+		// (Eski kenar-tetikleme yalnız air→o sınır tick'inde çalışıyordu; resume/
+		// atlama olunca sınır kaçıp oksijen tüm periyot boyunca kapalı kalıyordu →
+		// ne "maske tak" mesajı ne mavi LED.)
 		if (
 			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'air' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'o' &&
+			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
 			sessionStatus.oksijen == 0
 		) {
 			sessionStatus.oksijen = 1;
@@ -1455,11 +1457,11 @@ function read() {
 			}, 10000);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'air' &&
+			sessionStatus.profile[sessionStatus.zaman][2] != 'o' &&
 			sessionStatus.oksijen == 1
 		) {
+			// Hava molası: 'o' segmentinden çıkıldı (treatment-finished dalı
+			// yukarıda önceliklidir; bu yalnız plato içi air-break içindir).
 			sessionStatus.oksijen = 0;
 
 			alarmSet('oxygenBreak', 'Oxygen Stopped. Take the mask off.', 0);
@@ -2049,11 +2051,13 @@ function read_demo() {
 		}
 
 		// Profile bazlÄ± oksijen kontrolÃ¼ (demo mode)
+		// Seviye-bazlı O2 tespiti: bulunulan segment 'o' ise oksijen AÇ.
+		// (Eski kenar-tetikleme yalnız air→o sınır tick'inde çalışıyordu; resume/
+		// atlama olunca sınır kaçıp oksijen tüm periyot boyunca kapalı kalıyordu →
+		// ne "maske tak" mesajı ne mavi LED.)
 		if (
 			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'air' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'o' &&
+			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
 			sessionStatus.oksijen == 0
 		) {
 			sessionStatus.oksijen = 1;
@@ -2087,11 +2091,11 @@ function read_demo() {
 			);
 		} else if (
 			sessionStatus.profile[sessionStatus.zaman] &&
-			sessionStatus.profile[sessionStatus.zaman + 1] &&
-			sessionStatus.profile[sessionStatus.zaman][2] == 'o' &&
-			sessionStatus.profile[sessionStatus.zaman + 1][2] == 'air' &&
+			sessionStatus.profile[sessionStatus.zaman][2] != 'o' &&
 			sessionStatus.oksijen == 1
 		) {
+			// Hava molası: 'o' segmentinden çıkıldı (treatment-finished dalı
+			// yukarıda önceliklidir; bu yalnız plato içi air-break içindir).
 			sessionStatus.oksijen = 0;
 
 			alarmSet('oxygenBreak', 'Oxygen Stopped. Take the mask off.', 0);
